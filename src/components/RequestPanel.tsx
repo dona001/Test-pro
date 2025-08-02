@@ -10,6 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, X, Send, Zap, Copy, Clipboard, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { getMethodColor } from '@/lib/utils';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface RequestPanelProps {
   onApiCall: (config: {
@@ -35,13 +38,13 @@ interface Header {
 }
 
 const HTTP_METHODS = [
-  { value: 'GET', color: 'bg-green-100 text-green-800 border-green-200' },
-  { value: 'POST', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-  { value: 'PUT', color: 'bg-orange-100 text-orange-800 border-orange-200' },
-  { value: 'DELETE', color: 'bg-red-100 text-red-800 border-red-200' },
-  { value: 'PATCH', color: 'bg-purple-100 text-purple-800 border-purple-200' },
-  { value: 'HEAD', color: 'bg-gray-100 text-gray-800 border-gray-200' },
-  { value: 'OPTIONS', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  { value: 'GET', color: getMethodColor('GET') },
+  { value: 'POST', color: getMethodColor('POST') },
+  { value: 'PUT', color: getMethodColor('PUT') },
+  { value: 'DELETE', color: getMethodColor('DELETE') },
+  { value: 'PATCH', color: getMethodColor('PATCH') },
+  { value: 'HEAD', color: getMethodColor('HEAD') },
+  { value: 'OPTIONS', color: getMethodColor('OPTIONS') },
 ];
 
 export const RequestPanel: React.FC<RequestPanelProps> = ({ onApiCall, loading, selectedEndpoint }) => {
@@ -154,7 +157,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ onApiCall, loading, 
     });
   };
 
-  const getMethodColor = (methodValue: string) => {
+  const getMethodColorLocal = (methodValue: string) => {
     return HTTP_METHODS.find(m => m.value === methodValue)?.color || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 

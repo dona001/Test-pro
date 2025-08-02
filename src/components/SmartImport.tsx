@@ -17,6 +17,7 @@ import { ResponsePanel } from './ResponsePanel';
 import { proxyApiCall } from '@/api/proxy';
 import { ValidationRule } from '@/types/validation';
 import { isFeatureEnabled } from '@/config';
+import { getMethodColor } from '@/lib/utils';
 
 interface Endpoint {
   id: string;
@@ -496,10 +497,10 @@ export const SmartImport: React.FC<SmartImportProps> = ({ onEndpointSelected }) 
                         <SelectContent>
                           {endpoints.map((endpoint) => (
                             <SelectItem key={endpoint.id} value={endpoint.id}>
-                              <div className="flex items-center space-x-2">
-                                <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                                  {endpoint.method}
-                                </span>
+                                                          <div className="flex items-center space-x-2">
+                              <span className={`font-mono text-xs px-2 py-1 rounded border ${getMethodColor(endpoint.method)}`}>
+                                {endpoint.method}
+                              </span>
                                 <span>{endpoint.name}</span>
                               </div>
                             </SelectItem>

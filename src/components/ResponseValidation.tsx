@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { ValueSelector } from './ValueSelector';
+import { isFeatureEnabled } from '@/config';
 
 interface ApiResponse {
   status: number;
@@ -217,7 +219,7 @@ export const ResponseValidation: React.FC<ResponseValidationProps> = ({ response
       <CardContent className="space-y-4">
         {/* Add new rule form */}
         <div className="space-y-3 p-3 bg-gray-50 rounded-md">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
             <Select value={newRuleType} onValueChange={setNewRuleType}>
               <SelectTrigger>
                 <SelectValue placeholder="Validation type" />
@@ -245,12 +247,26 @@ export const ResponseValidation: React.FC<ResponseValidationProps> = ({ response
             />
 
             {newRuleType !== 'exists' && (
-              <Input
-                placeholder="expected value"
-                value={newRuleValue}
-                onChange={(e) => setNewRuleValue(e.target.value)}
-                className="font-mono text-sm"
-              />
+              <div className="flex-1">
+                {response && (newRuleType === 'value' || newRuleType === 'body') && isFeatureEnabled('valueSelector') ? (
+                  <div>
+                    <ValueSelector
+                      response={response.data}
+                      field={newRuleField || ''}
+                      value={newRuleValue}
+                      onValueChange={setNewRuleValue}
+                      placeholder="Select value from response..."
+                    />
+                  </div>
+                ) : (
+                  <Input
+                    placeholder="expected value"
+                    value={newRuleValue}
+                    onChange={(e) => setNewRuleValue(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                )}
+              </div>
             )}
 
             <Button onClick={addRule} disabled={!newRuleType || !newRuleField}>

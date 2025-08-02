@@ -53,6 +53,7 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
 }) => {
   const { toast } = useToast();
 
+
   const formatJson = (obj: any) => {
     try {
       return JSON.stringify(obj, null, 2);
@@ -169,11 +170,11 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                       url={requestConfig?.url || 'Unknown URL'} 
                     />
                   ) : response.data?.success ? (
-                    <pre className="text-sm font-mono whitespace-pre-wrap text-gray-800">
+                    <pre className="text-sm font-mono bg-white p-4 rounded border overflow-auto">
                       {formatJson(response.data.data)}
                     </pre>
                   ) : (
-                    <pre className="text-sm font-mono whitespace-pre-wrap text-gray-800">
+                    <pre className="text-sm font-mono bg-white p-4 rounded border overflow-auto">
                       {formatJson(response.data)}
                     </pre>
                   )}

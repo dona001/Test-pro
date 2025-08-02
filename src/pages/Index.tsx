@@ -14,6 +14,7 @@ import { BitbucketIntegration } from "@/components/BitbucketIntegration";
 import { isFeatureEnabled } from "@/config";
 import { fetchWithCORS, CORSProxy } from "@/api/corsProxy";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { getMethodColor } from "@/lib/utils";
 
 const Index = () => {
   const [response, setResponse] = useState<any>(null);
@@ -420,7 +421,7 @@ const Index = () => {
                         >
                           <div className="flex flex-col items-start w-full">
                             <div className="flex items-center w-full">
-                              <Badge variant="secondary" className="mr-2 text-xs">
+                              <Badge className={`mr-2 text-xs border ${getMethodColor(endpoint.method)}`}>
                                 {endpoint.method}
                               </Badge>
                               <span className="text-sm font-medium truncate">

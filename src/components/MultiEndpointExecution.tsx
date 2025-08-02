@@ -16,6 +16,7 @@ import { JiraIntegration } from './JiraIntegration';
 import { BitbucketIntegration } from './BitbucketIntegration';
 import { isFeatureEnabled } from '@/config';
 import { generateTestCode, downloadFiles } from '@/utils/testCodeGenerator';
+import { getMethodColor } from '@/lib/utils';
 
 import { ValidationRule, Endpoint } from '@/types/validation';
 
@@ -468,7 +469,7 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                             
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center space-x-2 mb-2">
-                                <Badge variant="outline" className="font-mono text-xs">
+                                <Badge className={`font-mono text-xs border ${getMethodColor(effectiveEndpoint.method)}`}>
                                   {effectiveEndpoint.method}
                                 </Badge>
                                 <span className="font-medium">{effectiveEndpoint.name}</span>

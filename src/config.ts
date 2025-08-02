@@ -16,7 +16,8 @@ export const config = {
     multiEndpointTesting: true,
     testCodeGeneration: true,
     reporting: true,
-    useAllureReports: false // Toggle between Extent (false) and Allure (true)
+    useAllureReports: false, // Toggle between Extent (false) and Allure (true)
+    valueSelector: false // Enable/disable dynamic value selection dropdown
   },
 
   // External service configurations (optional)
