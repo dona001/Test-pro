@@ -197,9 +197,9 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
               {/* Fixed height scrollable container for headers */}
               <div className="flex-1 border rounded-lg bg-gray-50/50 overflow-hidden">
                 <ScrollArea className="h-[400px] p-4">
-                  <div className="space-y-3">
-                    {response.headers && typeof response.headers === 'object' && Object.entries(response.headers).length > 0 ? (
-                      Object.entries(response.headers).map(([key, value]) => (
+                  {response.headers && typeof response.headers === 'object' && Object.entries(response.headers).length > 0 ? (
+                    <div className="space-y-3">
+                      {Object.entries(response.headers).map(([key, value]) => (
                         <div key={key} className="flex flex-col space-y-1 p-3 bg-white rounded border-l-4 border-l-blue-200">
                           <code className="font-mono text-sm font-semibold text-blue-700">
                             {key}
@@ -208,14 +208,14 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                             {value}
                           </code>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center text-gray-500 py-8">
-                        <p>No headers available</p>
-                        <p className="text-sm mt-2">This may be due to CORS restrictions or network errors</p>
-                      </div>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500 py-8">
+                      <p>No headers available</p>
+                      <p className="text-sm mt-2">This may be due to CORS restrictions or network errors</p>
+                    </div>
+                  )}
                 </ScrollArea>
               </div>
             </TabsContent>

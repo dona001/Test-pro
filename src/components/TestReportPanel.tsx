@@ -41,7 +41,7 @@ interface Endpoint {
 
 interface ExecutionResult {
   endpoint: Endpoint;
-  status: 'success' | 'error' | 'pending';
+  status: 'success' | 'failed' | 'pending';
   response?: {
     status: number;
     data: any;
@@ -167,7 +167,7 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
     switch (status) {
       case 'success':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'error':
+      case 'failed':
         return <XCircle className="w-4 h-4 text-red-600" />;
       default:
         return <Clock className="w-4 h-4 text-gray-400" />;
@@ -178,7 +178,7 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
     switch (status) {
       case 'success':
         return <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">Success</Badge>;
-      case 'error':
+      case 'failed':
         return <Badge variant="destructive">Failed</Badge>;
       default:
         return <Badge variant="outline">Pending</Badge>;

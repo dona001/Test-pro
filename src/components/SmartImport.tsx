@@ -6,9 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, CheckCircle, List, Settings, Shield, Play } from 'lucide-react';
+import { Upload, FileText, CheckCircle, List, Settings, Shield, Play, Globe, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { parseImportedFile } from '@/utils/fileParser';
+import { parseImportedFile, parseSwaggerFromURL } from '@/utils/fileParser';
 import { MultiEndpointExecution } from './MultiEndpointExecution';
 import { EndpointConfigModal } from './EndpointConfigModal';
 import { EndpointValidationModal } from './EndpointValidationModal';
@@ -46,6 +46,11 @@ export const SmartImport: React.FC<SmartImportProps> = ({ onEndpointSelected }) 
   const [fileLoaded, setFileLoaded] = useState(false);
   const [fileName, setFileName] = useState<string>('');
   
+  // URL import state
+  const [swaggerUrl, setSwaggerUrl] = useState<string>('');
+  const [isUrlImporting, setIsUrlImporting] = useState(false);
+  const [urlImportError, setUrlImportError] = useState<string>('');
+  
   // Single endpoint execution state
   const [singleEndpointConfig, setSingleEndpointConfig] = useState<Endpoint | null>(null);
   const [singleEndpointValidation, setSingleEndpointValidation] = useState<ValidationRule[]>([]);
@@ -65,6 +70,7 @@ export const SmartImport: React.FC<SmartImportProps> = ({ onEndpointSelected }) 
 
     setIsUploading(true);
     setFileLoaded(false);
+    setUrlImportError('');
     
     try {
       const text = await file.text();
@@ -88,6 +94,43 @@ export const SmartImport: React.FC<SmartImportProps> = ({ onEndpointSelected }) 
       });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleUrlImport = async () => {
+    if (!swaggerUrl.trim()) {
+      setUrlImportError('Please enter a valid Swagger/OpenAPI URL');
+      return;
+    }
+
+    setIsUrlImporting(true);
+    setUrlImportError('');
+    setFileLoaded(false);
+    
+    try {
+      const parsedEndpoints = await parseSwaggerFromURL(swaggerUrl.trim());
+      
+      setEndpoints(parsedEndpoints);
+      setFileLoaded(true);
+      setFileName(`Swagger from ${new URL(swaggerUrl).hostname}`);
+      
+      toast({
+        title: "Swagger imported successfully",
+        description: `Found ${parsedEndpoints.length} endpoints from ${new URL(swaggerUrl).hostname}`,
+      });
+    } catch (error) {
+      console.error('URL import error:', error);
+      setFileLoaded(false);
+      const errorMessage = error instanceof Error ? error.message : "Failed to import from URL";
+      setUrlImportError(errorMessage);
+      
+      toast({
+        title: "URL import failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUrlImporting(false);
     }
   };
 
@@ -341,11 +384,53 @@ export const SmartImport: React.FC<SmartImportProps> = ({ onEndpointSelected }) 
               <SelectContent>
                 <SelectItem value="postman">Postman Collection</SelectItem>
                 <SelectItem value="swagger">Swagger/OpenAPI</SelectItem>
+                <SelectItem value="swagger-url">Import Swagger via URL</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {importType && (
+          {importType === 'swagger-url' && (
+            <div className="space-y-2">
+              <Label htmlFor="swagger-url">Swagger/OpenAPI URL</Label>
+              <div className="flex space-x-2">
+                <Input
+                  id="swagger-url"
+                  placeholder="https://example.com/api/swagger.json"
+                  value={swaggerUrl}
+                  onChange={(e) => setSwaggerUrl(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleUrlImport}
+                  disabled={isUrlImporting || !swaggerUrl.trim()}
+                  className="flex items-center space-x-1"
+                >
+                  {isUrlImporting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-1"></div>
+                      <span>Importing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="w-4 h-4" />
+                      <span>Import</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+              {urlImportError && (
+                <div className="flex items-center space-x-2 text-red-600 text-sm">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{urlImportError}</span>
+                </div>
+              )}
+              <p className="text-xs text-gray-500">
+                Enter a URL to a Swagger/OpenAPI specification (JSON or YAML)
+              </p>
+            </div>
+          )}
+
+          {(importType === 'postman' || importType === 'swagger') && (
             <div className="space-y-2">
               <Label htmlFor="file-upload">Upload File</Label>
               <div className="flex items-center space-x-2">

@@ -28,46 +28,6 @@ export const Header = () => {
               </div>
             </div>
             
-            {/* Navigation */}
-            <nav className="flex items-center space-x-1">
-              <Button 
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/')}
-                className={`flex items-center space-x-2 rounded-lg px-4 py-2 transition-all duration-200 ${
-                  isManualTesting 
-                    ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                    : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Zap className="w-4 h-4" />
-                <span>Manual Testing</span>
-                {isManualTesting && (
-                  <Badge variant="secondary" className="ml-1 text-xs bg-green-200 text-green-800">
-                    Active
-                  </Badge>
-                )}
-              </Button>
-              
-              <Button 
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/collection')}
-                className={`flex items-center space-x-2 rounded-lg px-4 py-2 transition-all duration-200 ${
-                  isCollectionTesting 
-                    ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                    : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                <span>Collections</span>
-                {isCollectionTesting && (
-                  <Badge variant="secondary" className="ml-1 text-xs bg-green-200 text-green-800">
-                    Active
-                  </Badge>
-                )}
-              </Button>
-            </nav>
           </div>
 
           <div className="flex items-center space-x-4">

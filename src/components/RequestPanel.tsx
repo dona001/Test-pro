@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, X, Send, Zap } from 'lucide-react';
+import { Plus, X, Send, Zap, Copy, Clipboard, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 interface RequestPanelProps {
   onApiCall: (config: {
@@ -18,6 +19,14 @@ interface RequestPanelProps {
     body?: string;
   }) => void;
   loading: boolean;
+  selectedEndpoint?: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body?: string;
+    name?: string;
+    description?: string;
+  };
 }
 
 interface Header {
@@ -35,11 +44,33 @@ const HTTP_METHODS = [
   { value: 'OPTIONS', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
 ];
 
-export const RequestPanel: React.FC<RequestPanelProps> = ({ onApiCall, loading }) => {
+export const RequestPanel: React.FC<RequestPanelProps> = ({ onApiCall, loading, selectedEndpoint }) => {
   const [method, setMethod] = useState('GET');
   const [url, setUrl] = useState('');
   const [headers, setHeaders] = useState<Header[]>([{ key: '', value: '' }]);
   const [body, setBody] = useState('');
+  const [bulkHeadersText, setBulkHeadersText] = useState('');
+  const [showBulkInput, setShowBulkInput] = useState(false);
+  const { toast } = useToast();
+
+  // Auto-populate form when selectedEndpoint changes
+  useEffect(() => {
+    if (selectedEndpoint) {
+      setMethod(selectedEndpoint.method);
+      setUrl(selectedEndpoint.url);
+      
+      // Convert headers object to array format
+      const headerArray = Object.entries(selectedEndpoint.headers || {}).map(([key, value]) => ({
+        key,
+        value
+      }));
+      
+      // Always ensure at least one empty header row
+      setHeaders(headerArray.length > 0 ? [...headerArray, { key: '', value: '' }] : [{ key: '', value: '' }]);
+      
+      setBody(selectedEndpoint.body || '');
+    }
+  }, [selectedEndpoint]);
 
   const addHeader = () => {
     setHeaders([...headers, { key: '', value: '' }]);
@@ -54,6 +85,55 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ onApiCall, loading }
       i === index ? { ...header, [field]: value } : header
     );
     setHeaders(updatedHeaders);
+  };
+
+  const parseBulkHeaders = (text: string): Header[] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const parsedHeaders: Header[] = [];
+    
+    lines.forEach(line => {
+      const colonIndex = line.indexOf(':');
+      if (colonIndex > 0) {
+        const key = line.substring(0, colonIndex).trim();
+        const value = line.substring(colonIndex + 1).trim();
+        if (key && value) {
+          parsedHeaders.push({ key, value });
+        }
+      }
+    });
+    
+    return parsedHeaders;
+  };
+
+  const handleBulkHeadersApply = () => {
+    const parsedHeaders = parseBulkHeaders(bulkHeadersText);
+    if (parsedHeaders.length > 0) {
+      setHeaders([...parsedHeaders, { key: '', value: '' }]);
+      setShowBulkInput(false);
+      setBulkHeadersText('');
+      toast({
+        title: "Headers imported",
+        description: `Successfully parsed ${parsedHeaders.length} headers`,
+      });
+    } else {
+      toast({
+        title: "No valid headers found",
+        description: "Please check the format: Header-Name: Header-Value",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkHeadersCancel = () => {
+    setShowBulkInput(false);
+    setBulkHeadersText('');
+  };
+
+  const copyHeadersToBulk = () => {
+    const validHeaders = headers.filter(h => h.key.trim() && h.value.trim());
+    const headerText = validHeaders.map(h => `${h.key}: ${h.value}`).join('\n');
+    setBulkHeadersText(headerText);
+    setShowBulkInput(true);
   };
 
   const handleSubmit = () => {
@@ -151,7 +231,77 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ onApiCall, loading }
             
             <TabsContent value="headers" className="space-y-4">
               <div className="space-y-3">
-                <Label className="text-sm font-medium text-gray-700">HTTP Headers</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium text-gray-700">HTTP Headers</Label>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={copyHeadersToBulk}
+                      className="flex items-center space-x-1"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>Copy to Bulk</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowBulkInput(true)}
+                      className="flex items-center space-x-1"
+                    >
+                      <Clipboard className="w-3 h-3" />
+                      <span>Bulk Input</span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Bulk Header Input */}
+                {showBulkInput && (
+                  <Card className="border-2 border-blue-200 bg-blue-50/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center">
+                        <FileText className="w-4 h-4 mr-2" />
+                        Bulk Header Input (Postman-style)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-gray-600">
+                          Paste headers in format: Header-Name: Header-Value
+                        </Label>
+                        <Textarea
+                          placeholder={`Authorization: Bearer xyz123
+Content-Type: application/json
+X-Custom-Header: test`}
+                          value={bulkHeadersText}
+                          onChange={(e) => setBulkHeadersText(e.target.value)}
+                          className="min-h-[120px] font-mono text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="sm"
+                          onClick={handleBulkHeadersApply}
+                          className="flex items-center space-x-1"
+                        >
+                                                <Clipboard className="w-3 h-3" />
+                      <span>Apply Headers</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleBulkHeadersCancel}
+                          className="flex items-center space-x-1"
+                        >
+                          <X className="w-3 h-3" />
+                          <span>Cancel</span>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Individual Header Input */}
                 {headers.map((header, index) => (
                   <div key={index} className="flex space-x-2 items-center">
                     <Input

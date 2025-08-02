@@ -38,6 +38,10 @@ interface PostmanCollection {
   info: { name: string };
   item: PostmanItem[];
   variable?: PostmanVariable[];
+  auth?: {
+    type: string;
+    [key: string]: any;
+  };
 }
 
 // OpenAPI/Swagger interfaces
@@ -73,6 +77,15 @@ interface OpenAPISpec {
       [method: string]: OpenAPIOperation;
     };
   };
+  components?: {
+    securitySchemes?: {
+      [name: string]: {
+        type: string;
+        [key: string]: any;
+      };
+    };
+  };
+  security?: Array<{ [name: string]: string[] }>;
 }
 
 export async function parseImportedFile(content: string, filename: string): Promise<ParsedEndpoint[]> {
@@ -106,6 +119,25 @@ export async function parseImportedFile(content: string, filename: string): Prom
   }
 }
 
+export async function parseSwaggerFromURL(url: string): Promise<ParsedEndpoint[]> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Swagger spec from ${url}. Status: ${response.status}`);
+    }
+    
+    const content = await response.text();
+    const filename = url.includes('.yaml') || url.includes('.yml') ? 'swagger.yaml' : 'swagger.json';
+    
+    return await parseImportedFile(content, filename);
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Failed to import Swagger from URL: ${error.message}`);
+    }
+    throw new Error('Failed to import Swagger from URL. Please check the URL and try again.');
+  }
+}
+
 function resolvePostmanVariables(text: string, variables: PostmanVariable[]): string {
   if (!text || !variables) return text;
   
@@ -121,9 +153,33 @@ function resolvePostmanVariables(text: string, variables: PostmanVariable[]): st
   return resolvedText;
 }
 
+function extractGlobalHeaders(collection: PostmanCollection): Record<string, string> {
+  const globalHeaders: Record<string, string> = {};
+  
+  // Extract auth headers if present
+  if (collection.auth) {
+    switch (collection.auth.type) {
+      case 'bearer':
+        globalHeaders['Authorization'] = 'Bearer {{token}}';
+        break;
+      case 'apikey':
+        if (collection.auth.keyIn === 'header') {
+          globalHeaders[collection.auth.key] = '{{apiKey}}';
+        }
+        break;
+      case 'basic':
+        globalHeaders['Authorization'] = 'Basic {{base64_encoded_credentials}}';
+        break;
+    }
+  }
+  
+  return globalHeaders;
+}
+
 function parsePostmanCollection(collection: PostmanCollection): ParsedEndpoint[] {
   const endpoints: ParsedEndpoint[] = [];
   const variables = collection.variable || [];
+  const globalHeaders = extractGlobalHeaders(collection);
 
   function extractItemsRecursively(items: PostmanItem[], folderName = ''): void {
     for (const item of items) {
@@ -136,7 +192,10 @@ function parsePostmanCollection(collection: PostmanCollection): ParsedEndpoint[]
         // Resolve variables in URL
         url = resolvePostmanVariables(url, variables);
         
-        const headers: Record<string, string> = {};
+        // Start with global headers
+        const headers: Record<string, string> = { ...globalHeaders };
+        
+        // Add request-specific headers
         if (item.request.header) {
           item.request.header.forEach(h => {
             if (!h.disabled && h.key && h.value) {
@@ -184,8 +243,35 @@ function parsePostmanCollection(collection: PostmanCollection): ParsedEndpoint[]
   return endpoints;
 }
 
+function extractGlobalHeadersFromOpenAPI(spec: OpenAPISpec): Record<string, string> {
+  const globalHeaders: Record<string, string> = {};
+  
+  // Extract security schemes as global headers
+  if (spec.components?.securitySchemes) {
+    Object.entries(spec.components.securitySchemes).forEach(([name, scheme]) => {
+      switch (scheme.type) {
+        case 'http':
+          if (scheme.scheme === 'bearer') {
+            globalHeaders['Authorization'] = 'Bearer {{bearer_token}}';
+          } else if (scheme.scheme === 'basic') {
+            globalHeaders['Authorization'] = 'Basic {{basic_auth}}';
+          }
+          break;
+        case 'apiKey':
+          if (scheme.in === 'header') {
+            globalHeaders[scheme.name] = `{{${name}_key}}`;
+          }
+          break;
+      }
+    });
+  }
+  
+  return globalHeaders;
+}
+
 function parseOpenAPISpec(spec: OpenAPISpec): ParsedEndpoint[] {
   const endpoints: ParsedEndpoint[] = [];
+  const globalHeaders = extractGlobalHeadersFromOpenAPI(spec);
   
   // Determine base URL
   let baseUrl = '';
@@ -203,12 +289,14 @@ function parseOpenAPISpec(spec: OpenAPISpec): ParsedEndpoint[] {
       if (['get', 'post', 'put', 'delete', 'patch', 'head', 'options'].includes(method.toLowerCase())) {
         const op = operation as OpenAPIOperation;
         
-        // Build headers
-        const headers: Record<string, string> = {};
+        // Start with global headers
+        const headers: Record<string, string> = { ...globalHeaders };
+        
+        // Add operation-specific headers
         if (op.parameters) {
           op.parameters.forEach(param => {
             if (param.in === 'header') {
-              headers[param.name] = `{${param.name}}`;
+              headers[param.name] = param.required ? `{${param.name}}` : `{${param.name}}`;
             }
           });
         }

@@ -66,6 +66,12 @@ export async function proxyApiCall(config: {
     
   } catch (error) {
     console.log(`❌ Backend proxy error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    
+    // Check if it's a CORS error
+    if (error instanceof Error && error.message.includes('CORS')) {
+      throw new Error(`CORS error: The request was blocked due to CORS policy. Please check if the target API allows cross-origin requests.`);
+    }
+    
     throw new Error(`Backend proxy failed. Please ensure the proxy server is running on localhost:3001. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

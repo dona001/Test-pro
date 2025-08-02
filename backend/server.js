@@ -16,7 +16,7 @@ app.use(compression());
 app.use(cors({
   origin: ['http://localhost:8080', 'http://localhost:8081', 'http://localhost:8082', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'api_key', 'x-api-key', 'x-auth-token', 'x-custom-header'],
   credentials: true
 }));
 
@@ -42,6 +42,15 @@ app.get('/health', (req, res) => {
     service: 'CORS Proxy Server',
     version: '1.0.0'
   });
+});
+
+// Handle preflight OPTIONS requests
+app.options('/proxy', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, api_key, x-api-key, x-auth-token, x-custom-header');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.status(200).end();
 });
 
 // Main proxy endpoint
