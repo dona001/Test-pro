@@ -17,7 +17,9 @@ export const config = {
     testCodeGeneration: true,
     reporting: true,
     useAllureReports: false, // Toggle between Extent (false) and Allure (true)
-    valueSelector: false // Enable/disable dynamic value selection dropdown
+    valueSelector: false, // Enable/disable dynamic value selection dropdown
+    bddCodeGeneration: true, // BDD framework code generation
+    karateFramework: true // Karate framework support
   },
 
   // External service configurations (optional)
@@ -39,6 +41,19 @@ export const config = {
     theme: 'light', // 'light' | 'dark' | 'auto'
     defaultLanguage: 'en',
     enableAnimations: true
+  },
+
+  // BDD Framework Configuration
+  bdd: {
+    framework: 'cucumber', // 'cucumber' | 'karate'
+    language: 'java', // 'java' | 'kotlin'
+    basePackage: 'com.example.api',
+    useLombok: true,
+    generatePOJOs: true,
+    generateServiceClasses: true,
+    generateStepDefinitions: true,
+    generateFeatureFiles: true,
+    onlySuccessfulTests: true // Only generate code for successful tests
   }
 };
 
@@ -51,4 +66,7 @@ export const isFeatureEnabled = (featureName: keyof typeof config.features): boo
 export const getFeatureConfig = () => config.features;
 
 // Helper function to get UI configuration
-export const getUIConfig = () => config.ui; 
+export const getUIConfig = () => config.ui;
+
+// Helper function to get BDD configuration
+export const getBDDConfig = () => config.bdd; 

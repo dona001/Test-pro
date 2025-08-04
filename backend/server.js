@@ -160,10 +160,10 @@ app.all('/proxy', async (req, res) => {
     });
   }
 
-  console.log(`Proxying ${req.method} request to: ${targetUrl.href}`);
-  console.log(`Request headers:`, req.headers);
-  console.log(`Request body:`, req.body);
-  console.log(`Content-Type:`, req.headers['content-type']);
+  console.log(`🌐 Proxying ${req.method} request to: ${targetUrl.href}`);
+  console.log(`📋 Request headers:`, req.headers);
+  console.log(`📦 Request body:`, req.body);
+  console.log(`📄 Content-Type:`, req.headers['content-type']);
 
   const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
@@ -236,7 +236,7 @@ app.all('/proxy', async (req, res) => {
     const endTime = Date.now();
 
     console.log(
-      `Proxy successful: ${response.status} ${response.statusText} (${endTime - startTime}ms)`
+      `Proxy successful: ${response.status} ${response.statusText} (${endTime - startTime}ms) - Target URL: ${targetUrl.href}`
     );
 
     const responseHeaders = {};
@@ -264,7 +264,7 @@ app.all('/proxy', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(`Proxy error: ${error.message}`);
+    console.error(`Proxy error: ${error.message} - Target URL: ${targetUrl.href}`);
     res.status(500).json({
       success: false,
       error: 'Proxy request failed',

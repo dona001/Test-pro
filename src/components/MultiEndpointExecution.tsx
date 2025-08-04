@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Play, Download, CheckCircle, AlertCircle, Clock, FileCode, Settings, Eye, Shield, Coffee, Archive, ChevronDown } from 'lucide-react';
+import { Play, Download, CheckCircle, AlertCircle, Clock, FileCode, Settings, Eye, Shield, Coffee, Archive, ChevronDown, ToggleLeft } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { proxyApiCall } from '@/api/proxy';
@@ -16,6 +16,7 @@ import { JiraIntegration } from './JiraIntegration';
 import { BitbucketIntegration } from './BitbucketIntegration';
 import { isFeatureEnabled } from '@/config';
 import { generateTestCode, downloadFiles } from '@/utils/testCodeGenerator';
+import { BDDCodeGenerator as BDDGenerator } from '@/utils/bddCodeGenerator';
 import { getMethodColor } from '@/lib/utils';
 
 import { ValidationRule, Endpoint } from '@/types/validation';
@@ -53,6 +54,7 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
   const [validationModalEndpoint, setValidationModalEndpoint] = useState<Endpoint | null>(null);
   const [selectedResponseEndpoint, setSelectedResponseEndpoint] = useState<string | null>(null);
   const [endpointResponses, setEndpointResponses] = useState<Record<string, any>>({});
+  const [onlySuccessfulTests, setOnlySuccessfulTests] = useState(true);
   const { toast } = useToast();
 
   const handleEndpointSelection = (endpointId: string, checked: boolean) => {
@@ -259,10 +261,18 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
   };
 
   const handleMultiEndpointCodeGeneration = async (format: 'cucumber' | 'karate') => {
-    if (executionResults.length === 0) {
+    // Filter results based on toggle setting
+    const eligibleResults = onlySuccessfulTests 
+      ? executionResults.filter(result => result.status === 'success')
+      : executionResults;
+    
+    if (eligibleResults.length === 0) {
+      const message = onlySuccessfulTests 
+        ? "Please execute endpoints successfully before generating test code"
+        : "Please execute endpoints before generating test code";
       toast({
-        title: "No execution results",
-        description: "Please run the endpoints first to generate test code",
+        title: "No eligible tests",
+        description: message,
         variant: "destructive",
       });
       return;
@@ -271,13 +281,13 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
     try {
       toast({
         title: "Generating test code...",
-        description: `Creating ${format} test files for ${executionResults.length} endpoints`,
+        description: `Creating ${format} test files for ${eligibleResults.length} ${onlySuccessfulTests ? 'successful' : 'executed'} endpoints`,
       });
 
       const allFiles: Array<{name: string, content: string, type: string}> = [];
 
-      // Generate test code for each executed endpoint
-      for (const result of executionResults) {
+      // Generate test code for each eligible endpoint
+      for (const result of eligibleResults) {
         const endpoint = result.endpoint;
         const validationRules = endpointValidations[endpoint.id] || [];
         
@@ -317,8 +327,122 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
   };
 
   const handleCodeGeneration = () => {
-    const selectedEndpointObjects = selectedEndpoints.map(id => getEffectiveEndpoint(id));
-    onCodeGeneration(selectedEndpointObjects);
+    // Only generate code for successfully executed endpoints
+    const successfulResults = executionResults.filter(result => result.status === 'success');
+    
+    if (successfulResults.length === 0) {
+      toast({
+        title: "No successful tests",
+        description: "Please execute endpoints successfully before generating code",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const successfulEndpointObjects = successfulResults.map(result => result.endpoint);
+    onCodeGeneration(successfulEndpointObjects);
+  };
+
+  const handleBDDCodeGeneration = async () => {
+    // Filter results based on toggle setting
+    const eligibleResults = onlySuccessfulTests 
+      ? executionResults.filter(result => result.status === 'success')
+      : executionResults;
+    
+    const eligibleEndpoints = eligibleResults.map(result => result.endpoint.id);
+
+    if (eligibleEndpoints.length === 0) {
+      const message = onlySuccessfulTests 
+        ? "Please execute endpoints successfully before generating BDD code"
+        : "Please execute endpoints before generating BDD code";
+      toast({
+        title: "No eligible tests",
+        description: message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      toast({
+        title: "Generating BDD code...",
+        description: "Creating Cucumber/Karate test code for selected endpoints",
+      });
+
+      const selectedEndpointData = endpoints
+        .filter(e => eligibleEndpoints.includes(e.id))
+        .map(endpoint => {
+          const effectiveEndpoint = getEffectiveEndpoint(endpoint.id);
+          const executionResult = executionResults.find(r => r.endpoint.id === endpoint.id);
+          
+          return {
+            method: effectiveEndpoint.method,
+            path: effectiveEndpoint.url, // Use URL as path
+            name: effectiveEndpoint.name,
+            description: effectiveEndpoint.description,
+            requestBody: effectiveEndpoint.body ? JSON.parse(effectiveEndpoint.body) : undefined,
+            responseBody: executionResult?.response?.data,
+            actualResponse: executionResult?.response,
+            validationRules: (endpointValidations[endpoint.id] || []).map(rule => ({
+              type: rule.type,
+              field: rule.field,
+              expectedValue: rule.expectedValue || '',
+            })),
+            url: effectiveEndpoint.url,
+            headers: effectiveEndpoint.headers,
+          };
+        });
+
+      const generator = new BDDGenerator();
+      const code = generator.generateCode(selectedEndpointData);
+
+      // Create ZIP with generated code
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      
+      // Add feature files
+      code.featureFiles.forEach(file => {
+        zip.file(`features/${file.name}`, file.content);
+      });
+
+      // Add step definitions
+      code.stepDefinitions.forEach(file => {
+        zip.file(`src/test/java/com/example/api/steps/${file.name}`, file.content);
+      });
+
+      // Add service classes
+      code.serviceClasses.forEach(file => {
+        zip.file(`src/main/java/com/example/api/service/${file.name}`, file.content);
+      });
+
+      // Add POJOs
+      code.pojos.forEach(file => {
+        zip.file(`src/main/java/com/example/api/model/${file.name}`, file.content);
+      });
+
+      // Download ZIP
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'bdd-test-suite.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "BDD Code Generated!",
+        description: `Generated ${code.featureFiles.length} feature files, ${code.stepDefinitions.length} step definitions, ${code.serviceClasses.length} service classes, and ${code.pojos.length} POJOs.`,
+      });
+    } catch (error) {
+      console.error('BDD code generation failed:', error);
+      toast({
+        title: "Generation failed",
+        description: "Unable to generate BDD code. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusIcon = (result: ExecutionResult) => {
@@ -422,12 +546,23 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                   <Button
                     variant="outline"
                     onClick={handleCodeGeneration}
-                    disabled={selectedEndpoints.length === 0}
+                    disabled={executionResults.filter(r => r.status === 'success').length === 0}
                     className="flex items-center"
                   >
                     <FileCode className="w-4 h-4 mr-1" />
                     Generate Code
                   </Button>
+                  {isFeatureEnabled('bddCodeGeneration') && (
+                    <Button
+                      variant="outline"
+                      onClick={handleBDDCodeGeneration}
+                      disabled={executionResults.filter(r => r.status === 'success').length === 0}
+                      className="flex items-center"
+                    >
+                      <Coffee className="w-4 h-4 mr-1" />
+                      Generate BDD
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -640,8 +775,16 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                              </span>
                              <div className="flex items-center space-x-2">
                                <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                                 {executionResults.length} endpoints
+                                 {onlySuccessfulTests 
+                                   ? `${executionResults.filter(r => r.status === 'success').length}/${executionResults.length} successful`
+                                   : `${executionResults.length} executed`
+                                 }
                                </Badge>
+                               {isFeatureEnabled('bddCodeGeneration') && (
+                                 <Badge variant="outline" className="bg-green-100 text-green-700">
+                                   BDD Ready
+                                 </Badge>
+                               )}
                                <ChevronDown className="h-4 w-4 transition-transform duration-200" />
                              </div>
                            </CardTitle>
@@ -651,11 +794,25 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                      <CollapsibleContent>
                        <Card className="border-2 border-dashed border-blue-200 bg-blue-50 mt-2">
                          <CardContent className="pt-6">
-                           <p className="text-sm text-blue-700 mb-4">
-                             Generate automated test code for all executed endpoints with their validation rules:
-                           </p>
+                           <div className="flex items-center justify-between mb-4">
+                             <p className="text-sm text-blue-700">
+                               Generate automated test code with their validation rules:
+                             </p>
+                             <div className="flex items-center space-x-2">
+                               <ToggleLeft className="w-4 h-4 text-blue-600" />
+                               <label className="text-xs text-blue-700">
+                                 <input
+                                   type="checkbox"
+                                   checked={onlySuccessfulTests}
+                                   onChange={(e) => setOnlySuccessfulTests(e.target.checked)}
+                                   className="mr-1"
+                                 />
+                                 Only successful tests
+                               </label>
+                             </div>
+                           </div>
                            
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                              <Button
                                onClick={() => handleMultiEndpointCodeGeneration('cucumber')}
                                className="flex items-center justify-center h-20 flex-col space-y-2 bg-blue-600 hover:bg-blue-700"
@@ -689,15 +846,39 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                                  ZIP download
                                </div>
                              </Button>
+
+                             {isFeatureEnabled('bddCodeGeneration') && (
+                               <Button
+                                 onClick={handleBDDCodeGeneration}
+                                 className="flex items-center justify-center h-20 flex-col space-y-2 bg-green-600 hover:bg-green-700"
+                               >
+                                 <div className="flex items-center">
+                                   <Shield className="w-5 h-5 mr-2" />
+                                   <span className="font-semibold">BDD Framework</span>
+                                 </div>
+                                 <div className="text-xs text-center">
+                                   Feature + Step Definitions
+                                 </div>
+                                 <div className="flex items-center text-xs">
+                                   <Archive className="w-3 h-3 mr-1" />
+                                   ZIP download
+                                 </div>
+                               </Button>
+                             )}
                            </div>
 
                            <div className="mt-4 p-3 bg-white rounded-md border">
                              <h4 className="text-sm font-medium mb-2">Generated Test Suite Will Include:</h4>
                              <ul className="text-xs text-gray-600 space-y-1">
-                               <li>• Test files for all {executionResults.length} executed endpoints</li>
+                               <li>• Test files for {onlySuccessfulTests 
+                                 ? executionResults.filter(r => r.status === 'success').length 
+                                 : executionResults.length} {onlySuccessfulTests ? 'successful' : 'executed'} endpoints</li>
                                <li>• All configured validation rules per endpoint</li>
                                <li>• Complete project structure (Maven for Cucumber)</li>
                                <li>• Ready-to-run test automation code</li>
+                               {isFeatureEnabled('bddCodeGeneration') && (
+                                 <li>• BDD Feature files with Step Definitions (Cucumber/Karate)</li>
+                               )}
                              </ul>
                            </div>
                          </CardContent>

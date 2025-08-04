@@ -28,6 +28,29 @@ export const Header = () => {
               </div>
             </div>
             
+            <nav className="flex items-center space-x-4">
+              <Button
+                variant={isManualTesting ? "default" : "ghost"}
+                size="sm"
+                onClick={() => navigate('/')}
+              >
+                Manual Testing
+              </Button>
+              <Button
+                variant={isCollectionTesting ? "default" : "ghost"}
+                size="sm"
+                onClick={() => navigate('/collection')}
+              >
+                Collection Testing
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/bdd-test')}
+              >
+                BDD Code Gen
+              </Button>
+            </nav>
           </div>
 
           <div className="flex items-center space-x-4">

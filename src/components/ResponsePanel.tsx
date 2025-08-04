@@ -9,6 +9,7 @@ import { Clock, Globe, CheckCircle, AlertCircle, Copy } from 'lucide-react';
 import { ResponseValidation } from './ResponseValidation';
 import { useToast } from '@/hooks/use-toast';
 import { TestCodeGenerator } from './TestCodeGenerator';
+import { BDDCodeGenerator } from './BDDCodeGenerator';
 import { ValidationRule } from '@/types/validation';
 import { JiraIntegration } from './JiraIntegration';
 import { isFeatureEnabled } from '@/config';
@@ -166,7 +167,6 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                 <ScrollArea className="h-[400px] p-4">
                   {response.status === 0 && response.data?.error ? (
                     <CORSErrorDisplay 
-                      errorData={response.data} 
                       url={requestConfig?.url || 'Unknown URL'} 
                     />
                   ) : response.data?.success ? (
@@ -265,6 +265,22 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
           <TestCodeGenerator 
             requestConfig={requestConfig} 
             validationRules={validationRules as any}
+          />
+        </div>
+      )}
+
+      {/* BDD Code Generation Panel */}
+      {isFeatureEnabled('bddCodeGeneration') && requestConfig && response && response.status >= 200 && response.status < 300 && (
+        <div className="p-6">
+          <BDDCodeGenerator 
+            endpoints={[{
+              method: requestConfig.method,
+              path: new URL(requestConfig.url).pathname,
+              name: `${requestConfig.method.toLowerCase()}_${new URL(requestConfig.url).pathname.replace(/\//g, '_').replace(/^_|_$/g, '')}`,
+              description: `${requestConfig.method.toUpperCase()} ${requestConfig.url}`,
+              requestBody: requestConfig.body ? JSON.parse(requestConfig.body) : undefined,
+              responseBody: response?.data,
+            }]}
           />
         </div>
       )}
