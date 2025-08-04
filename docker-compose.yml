@@ -4,10 +4,13 @@ services:
   api-tester-pro:
     build: .
     ports:
-      - "3000:3000"  # Frontend
-      - "3001:3001"  # Backend proxy
+      - "${FRONTEND_PORT:-3000}:3000"  # Frontend
+      - "${BACKEND_PORT:-3001}:3001"    # Backend proxy
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV:-production}
+      - SERVER_IP=${SERVER_IP:-0.0.0.0}
+      - PORT=${BACKEND_PORT:-3001}
+      - FRONTEND_PORT=${FRONTEND_PORT:-3000}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]

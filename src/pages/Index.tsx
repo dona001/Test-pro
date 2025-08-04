@@ -15,6 +15,7 @@ import { isFeatureEnabled } from "@/config";
 import { fetchWithCORS, CORSProxy } from "@/api/corsProxy";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { getMethodColor } from "@/lib/utils";
+import { getProxySolutions } from "@/config/proxy";
 
 const Index = () => {
   const [response, setResponse] = useState<any>(null);
@@ -82,13 +83,7 @@ const Index = () => {
           headers: {},
           data: {
             error: `Backend proxy failed for ${requestData.url}`,
-            solutions: [
-              'Ensure the backend proxy server is running: cd backend && npm start',
-              'Check if the proxy server is accessible at http://localhost:3001/health',
-              'Verify the proxy server is running on port 3001',
-              'Check network connectivity to localhost:3001',
-              'Restart the backend proxy server if needed'
-            ],
+            solutions: getProxySolutions(),
             originalError: error instanceof Error ? error.message : 'Unknown error'
           },
           responseTime: Date.now(),
@@ -361,8 +356,7 @@ const Index = () => {
                   <span>✨ No registration required</span>
                   <span>•</span>
                   <span>🚀 Start testing instantly</span>
-                  <span>•</span>
-                  <span>📱 Works on all devices</span>
+            
                 </div>
               </div>
             )}

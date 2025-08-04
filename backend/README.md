@@ -1,272 +1,154 @@
 # CORS Proxy Server
 
-A lightweight Node.js + Express CORS proxy server for API Tester Pro.
+A configurable CORS proxy server that can easily switch between development (localhost) and production (company IP) environments.
 
-## 🚀 Features
+## 🚀 Quick Start
 
-- ✅ **All HTTP Methods**: GET, POST, PUT, DELETE, PATCH, OPTIONS
-- ✅ **CORS Enabled**: Configured for frontend origins
-- ✅ **Security**: Rate limiting, helmet, input validation
-- ✅ **Performance**: Compression, timeout handling
-- ✅ **Logging**: Detailed request/response logging
-- ✅ **Health Check**: `/health` endpoint for monitoring
-- ✅ **Error Handling**: Comprehensive error responses
-
-## 📦 Installation
-
+### 1. Switch Environment
 ```bash
-cd backend
-npm install
+# Switch to development (localhost)
+node switch-env.js development
+
+# Switch to production (company IP)
+node switch-env.js production
 ```
 
-## 🏃‍♂️ Running the Server
-
-### Development Mode
+### 2. Start Server
 ```bash
-npm run dev
+node server.js
 ```
 
-### Production Mode
+### 3. Test Server
 ```bash
-npm start
-```
-
-### Custom Port
-```bash
-PORT=3002 npm start
-```
-
-## 🔗 API Endpoints
-
-### Health Check
-```bash
-GET http://localhost:3001/health
-```
-
-**Response:**
-```json
-{
-  "status": "OK",
-  "timestamp": "2024-01-15T10:30:00.000Z",
-  "service": "CORS Proxy Server",
-  "version": "1.0.0"
-}
-```
-
-### Proxy Endpoint
-```bash
-GET http://localhost:3001/proxy?url=<target_url>
-POST http://localhost:3001/proxy?url=<target_url>
-PUT http://localhost:3001/proxy?url=<target_url>
-DELETE http://localhost:3001/proxy?url=<target_url>
-PATCH http://localhost:3001/proxy?url=<target_url>
-```
-
-## 📝 Usage Examples
-
-### GET Request
-```bash
-curl "http://localhost:3001/proxy?url=https://jsonplaceholder.typicode.com/posts/1"
-```
-
-### POST Request
-```bash
-curl -X POST "http://localhost:3001/proxy?url=https://jsonplaceholder.typicode.com/posts" \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Test Post", "body": "Test content", "userId": 1}'
-```
-
-### PUT Request
-```bash
-curl -X PUT "http://localhost:3001/proxy?url=https://jsonplaceholder.typicode.com/posts/1" \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Updated Post", "body": "Updated content", "userId": 1}'
-```
-
-### DELETE Request
-```bash
-curl -X DELETE "http://localhost:3001/proxy?url=https://jsonplaceholder.typicode.com/posts/1"
+node test-proxy.js
 ```
 
 ## 🔧 Configuration
 
-### Environment Variables
-- `PORT`: Server port (default: 3001)
-- `NODE_ENV`: Environment mode (development/production)
+The server uses a configuration system to easily switch between environments:
 
-### CORS Origins
-The server is configured to accept requests from:
-- `http://localhost:8080`
-- `http://localhost:8081`
-- `http://localhost:8082`
-- `http://localhost:3000`
+### Development Environment
+- **Server IP**: `localhost`
+- **Test URL**: `http://localhost:3001`
+- **CORS**: Allows specific localhost origins
+- **Blocked Hosts**: `localhost`, `127.0.0.1`
 
-### Rate Limiting
-- **Window**: 15 minutes
-- **Max Requests**: 100 per IP
-- **Headers**: Standard rate limit headers
+### Production Environment
+- **Server IP**: `10.106.246.81` (your company IP)
+- **Test URL**: `http://10.106.246.81:3001`
+- **CORS**: Allows all origins (dynamic)
+- **Blocked Hosts**: `127.0.0.1`, `10.106.246.81`
 
-## 🛡️ Security Features
+## 📁 Files
 
-### Input Validation
-- ✅ URL validation
-- ✅ Protocol restrictions (HTTP/HTTPS only)
-- ✅ Localhost blocking
-- ✅ Request size limits (10MB)
+- `server.js` - Main proxy server
+- `config.js` - Configuration file
+- `switch-env.js` - Environment switcher
+- `test-proxy.js` - Test script for all HTTP methods
 
-### Security Headers
-- ✅ Helmet.js for security headers
-- ✅ CORS configuration
-- ✅ Rate limiting
-- ✅ Request sanitization
+## 🧪 Testing
 
-### Error Handling
-- ✅ Comprehensive error responses
-- ✅ Request timeout (30 seconds)
-- ✅ Redirect limits (5 max)
-- ✅ Status code validation
+The test script will test:
+- ✅ GET requests
+- ✅ POST requests with JSON
+- ✅ PUT requests with JSON
+- ✅ DELETE requests
+- ✅ Form data POST
+- ✅ Plain text POST
 
-## 📊 Response Format
-
-### Success Response
-```json
-{
-  "success": true,
-  "status": 200,
-  "statusText": "OK",
-  "headers": {
-    "content-type": "application/json",
-    "cache-control": "no-cache"
-  },
-  "data": {
-    "id": 1,
-    "title": "Test Post"
-  },
-  "proxyInfo": {
-    "timestamp": "2024-01-15T10:30:00.000Z",
-    "responseTime": 245,
-    "targetUrl": "https://jsonplaceholder.typicode.com/posts/1"
-  }
-}
-```
-
-### Error Response
-```json
-{
-  "success": false,
-  "error": "Proxy request failed",
-  "message": "Request timeout",
-  "timestamp": "2024-01-15T10:30:00.000Z"
-}
-```
-
-## 🔍 Logging
-
-The server provides detailed console logging:
-
-```
-🔄 Proxying GET request to: https://jsonplaceholder.typicode.com/posts/1
-✅ Proxy successful: 200 OK (245ms)
-❌ Proxy error: Request timeout
-```
-
-## 🚫 Limitations
-
-### Blocked Features
-- ❌ Localhost requests (security)
-- ❌ Non-HTTP/HTTPS protocols
-- ❌ Invalid URLs
-- ❌ Missing URL parameter
-
-### Rate Limits
-- ⚠️ 100 requests per 15 minutes per IP
-- ⚠️ 30-second request timeout
-- ⚠️ 5 redirect maximum
-
-## 🔧 Integration with Frontend
-
-### Update Frontend CORS Proxy
-Replace the old proxy services with the local proxy:
-
-```typescript
-// In src/api/corsProxy.ts
-const LOCAL_PROXY = 'http://localhost:3001/proxy?url=';
-
-// Update fetchWithCORS function to use local proxy
-export async function fetchWithCORS(url: string, options: RequestInit = {}): Promise<Response> {
-  try {
-    // Try direct request first
-    return await fetch(url, options);
-  } catch (error) {
-    // Use local proxy as fallback
-    const proxyUrl = LOCAL_PROXY + encodeURIComponent(url);
-    return await fetch(proxyUrl, {
-      method: options.method || 'GET',
-      headers: options.headers,
-      body: options.body
-    });
-  }
-}
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Port Already in Use**
-   ```bash
-   # Check what's using port 3001
-   lsof -i :3001
-   # Kill the process or use different port
-   PORT=3002 npm start
-   ```
-
-2. **CORS Errors**
-   - Ensure frontend origin is in CORS configuration
-   - Check if proxy server is running
-   - Verify request headers
-
-3. **Timeout Errors**
-   - Increase timeout in server.js (default: 30s)
-   - Check target API availability
-   - Verify network connectivity
-
-4. **Rate Limit Exceeded**
-   - Wait 15 minutes or restart server
-   - Check request frequency
-   - Consider increasing limits
-
-## 📈 Monitoring
+## 🔍 API Endpoints
 
 ### Health Check
-```bash
-curl http://localhost:3001/health
+```
+GET http://localhost:3001/health
 ```
 
-### Logs
-Monitor console output for:
-- Request/response times
-- Error messages
-- Rate limit warnings
-- Security alerts
-
-## 🔄 Development
-
-### Adding New Features
-1. Update `server.js` with new endpoints
-2. Add tests if needed
-3. Update documentation
-4. Test with frontend integration
-
-### Debugging
-```bash
-# Enable debug logging
-DEBUG=* npm run dev
-
-# Check server logs
-tail -f logs/server.log
+### Proxy
+```
+ALL http://localhost:3001/proxy?url=<target_url>
 ```
 
-## 📄 License
+## 📝 Example Usage
 
-MIT License - see LICENSE file for details. 
+### GET Request
+```bash
+curl "http://localhost:3001/proxy?url=https://reqres.in/api/users/2"
+```
+
+### POST Request
+```bash
+curl -X POST "http://localhost:3001/proxy?url=https://reqres.in/api/users" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"John Doe","job":"Developer"}'
+```
+
+### PUT Request
+```bash
+curl -X PUT "http://localhost:3001/proxy?url=https://reqres.in/api/users/2" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Jane Smith","job":"Senior Developer"}'
+```
+
+### DELETE Request
+```bash
+curl -X DELETE "http://localhost:3001/proxy?url=https://reqres.in/api/users/2"
+```
+
+## 🛠️ Troubleshooting
+
+### POST Requests Not Working
+1. Make sure you're sending the correct `Content-Type` header
+2. Check that the request body is valid JSON
+3. Verify the target URL accepts POST requests
+
+### CORS Issues
+1. The server uses dynamic CORS - it should work with any origin
+2. Check that the target server allows your request method
+
+### Environment Issues
+1. Use `node switch-env.js` to see current environment
+2. Switch to the appropriate environment for your use case
+
+## 🔒 Security Features
+
+- Rate limiting (100 requests per 15 minutes)
+- HTTPS agent with self-signed certificate support
+- Blocked localhost/company IP for security
+- Helmet security headers
+- Request body size limits (10MB)
+
+## 📊 Supported Content Types
+
+- `application/json`
+- `application/x-www-form-urlencoded`
+- `text/*`
+- `application/xml`
+
+## 🎯 Environment Variables
+
+- `NODE_ENV`: Set to `development` or `production`
+- `PORT`: Server port (default: 3001) 
+
+# Build image
+docker build -t api-tester-pro .
+
+# Run with default settings
+docker run -p 3000:3000 -p 3001:3001 api-tester-pro
+
+# Run with custom environment
+docker run -p 8080:3000 -p 8081:3001 \
+  -e NODE_ENV=production \
+  -e SERVER_IP=your-ip \
+  -e FRONTEND_PORT=8080 \
+  -e BACKEND_PORT=8081 \
+  api-tester-pro
+
+# Docker Compose
+docker-compose up -d
+
+
+cd backend && NODE_ENV=production SERVER_IP=192.168.120.4 node server.js
+
+# Terminal 2: Frontend
+npm run build
+npm run preview -- --host 0.0.0.0 --port 3000

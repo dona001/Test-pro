@@ -1,4 +1,5 @@
 import * as yaml from 'js-yaml';
+import { getProxyBase } from '@/config/proxy';
 
 export interface ParsedEndpoint {
   id: string;
@@ -100,38 +101,66 @@ export async function parseImportedFile(content: string, filename: string): Prom
       data = JSON.parse(content);
     }
 
-    // Check if it's a Postman collection
-    if (data.info && data.item && !data.paths) {
-      return parsePostmanCollection(data as PostmanCollection);
+    // Determine the type of file and parse accordingly
+    if (data.info && (data.openapi || data.swagger)) {
+      // This is an OpenAPI/Swagger spec
+      return parseOpenAPISpec(data);
+    } else if (data.info && data.item) {
+      // This is a Postman collection
+      return parsePostmanCollection(data);
+    } else {
+      throw new Error('Unsupported file format. Please provide a valid Swagger/OpenAPI spec or Postman collection.');
     }
-    
-    // Check if it's an OpenAPI/Swagger spec
-    if (data.paths && (data.openapi || data.swagger)) {
-      return parseOpenAPISpec(data as OpenAPISpec);
-    }
-
-    throw new Error('Unrecognized file format. Please upload a valid Postman Collection or OpenAPI/Swagger file.');
   } catch (error) {
     if (error instanceof Error) {
-      throw error;
+      throw new Error(`Failed to parse file: ${error.message}`);
     }
-    throw new Error('Failed to parse the uploaded file. Please check the file format.');
+    throw new Error('Failed to parse the imported file. Please check the file format.');
   }
 }
 
 export async function parseSwaggerFromURL(url: string): Promise<ParsedEndpoint[]> {
   try {
-    const response = await fetch(url);
+    // Use environment-aware proxy URL
+    const proxyUrl = getProxyBase() + encodeURIComponent(url);
+    
+    console.log(`🔄 Fetching Swagger spec via proxy: ${url}`);
+    console.log(`🛡️ Using proxy: ${proxyUrl}`);
+    
+    const response = await fetch(proxyUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch Swagger spec from ${url}. Status: ${response.status}`);
     }
     
-    const content = await response.text();
+    // Parse the proxy response
+    const proxyResponse = await response.json();
+    
+    if (!proxyResponse.success) {
+      throw new Error(`Proxy request failed: ${proxyResponse.message || 'Unknown error'}`);
+    }
+    
+    // Extract the actual content from the proxy response
+    const content = typeof proxyResponse.data === 'string' 
+      ? proxyResponse.data 
+      : JSON.stringify(proxyResponse.data);
+    
     const filename = url.includes('.yaml') || url.includes('.yml') ? 'swagger.yaml' : 'swagger.json';
+    
+    console.log(`✅ Successfully fetched Swagger spec via proxy`);
     
     return await parseImportedFile(content, filename);
   } catch (error) {
+    console.error('Swagger URL import error:', error);
+    
     if (error instanceof Error) {
+      // Check if it's a proxy-related error
+      if (error.message.includes('proxy') || 
+          error.message.includes('localhost:3001') || 
+          error.message.includes('10.106.246.81') ||
+          error.message.includes('Failed to fetch') ||
+          error.message.includes('NetworkError')) {
+        throw new Error(`Failed to import Swagger from URL via proxy. Please ensure the backend proxy server is running. Error: ${error.message}`);
+      }
       throw new Error(`Failed to import Swagger from URL: ${error.message}`);
     }
     throw new Error('Failed to import Swagger from URL. Please check the URL and try again.');

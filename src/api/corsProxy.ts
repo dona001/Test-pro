@@ -1,7 +1,9 @@
 // Backend CORS Proxy Integration
 // All API requests go through the backend proxy server
 
-const BACKEND_PROXY = 'http://localhost:3001/proxy?url=';
+import { getProxyBase, getProxySolutions } from '@/config/proxy';
+
+const BACKEND_PROXY = getProxyBase();
 
 /**
  * Unified API request function using backend proxy
@@ -46,7 +48,30 @@ export async function fetchWithCORS(
     console.log(`❌ Backend proxy error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     console.log(`⏱️ Request time: ${endTime - startTime}ms`);
     
-    throw new Error(`Backend proxy failed. Please ensure the proxy server is running on localhost:3001. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    // Provide more specific error messages
+    let errorMessage = 'Backend proxy failed';
+    let solutions = getProxySolutions();
+    
+    if (error instanceof Error) {
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        errorMessage = 'Cannot connect to proxy server';
+        solutions = [
+          'Start the proxy server: cd backend && node server.js',
+          'Check if the server is running on port 3001',
+          'Verify no firewall is blocking the connection',
+          'Try restarting the proxy server'
+        ];
+      } else if (error.message.includes('CORS')) {
+        errorMessage = 'CORS error - proxy server not responding';
+        solutions = [
+          'Ensure the proxy server is running and accessible',
+          'Check proxy server logs for errors',
+          'Verify the proxy server is configured correctly'
+        ];
+      }
+    }
+    
+    throw new Error(`${errorMessage}. Please ensure the proxy server is running. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -68,16 +93,10 @@ export class CORSProxy {
   }
 
   static getCORSErrorMessage(url: string): string {
-    return `Backend proxy error for ${url}. Please ensure the proxy server is running on localhost:3001.`;
+    return `Backend proxy error for ${url}. Please ensure the proxy server is running.`;
   }
 
   static getCORSSolutions(): string[] {
-    return [
-      'Ensure the backend proxy server is running: cd backend && npm start',
-      'Check if the proxy server is accessible at http://localhost:3001/health',
-      'Verify the proxy server is running on port 3001',
-      'Check network connectivity to localhost:3001',
-      'Restart the backend proxy server if needed'
-    ];
+    return getProxySolutions();
   }
 } 

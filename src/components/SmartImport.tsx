@@ -18,6 +18,7 @@ import { proxyApiCall } from '@/api/proxy';
 import { ValidationRule } from '@/types/validation';
 import { isFeatureEnabled } from '@/config';
 import { getMethodColor } from '@/lib/utils';
+import { getProxyHealthUrl } from '@/config/proxy';
 
 interface Endpoint {
   id: string;
@@ -109,6 +110,8 @@ export const SmartImport: React.FC<SmartImportProps> = ({ onEndpointSelected }) 
     setFileLoaded(false);
     
     try {
+      console.log(`🔄 Starting Swagger import from URL: ${swaggerUrl.trim()}`);
+      
       const parsedEndpoints = await parseSwaggerFromURL(swaggerUrl.trim());
       
       setEndpoints(parsedEndpoints);
@@ -122,14 +125,39 @@ export const SmartImport: React.FC<SmartImportProps> = ({ onEndpointSelected }) 
     } catch (error) {
       console.error('URL import error:', error);
       setFileLoaded(false);
-      const errorMessage = error instanceof Error ? error.message : "Failed to import from URL";
+      
+      let errorMessage = "Failed to import from URL";
+      let isProxyError = false;
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check if it's a proxy-related error
+        if (error.message.includes('proxy') || 
+            error.message.includes('localhost:3001') || 
+            error.message.includes('10.106.246.81') ||
+            error.message.includes('Failed to fetch') ||
+            error.message.includes('NetworkError')) {
+          isProxyError = true;
+          errorMessage = `Proxy server error: ${error.message}`;
+        }
+      }
+      
       setUrlImportError(errorMessage);
       
       toast({
-        title: "URL import failed",
+        title: isProxyError ? "Proxy Server Error" : "URL import failed",
         description: errorMessage,
         variant: "destructive",
       });
+      
+      // If it's a proxy error, provide additional help
+      if (isProxyError) {
+        console.log('🔧 Proxy error detected. Please ensure:');
+        console.log('1. Backend proxy server is running: cd backend && node server.js');
+        console.log(`2. Proxy server is accessible at ${getProxyHealthUrl()}`);
+        console.log('3. No firewall is blocking the connection');
+      }
     } finally {
       setIsUrlImporting(false);
     }
