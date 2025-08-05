@@ -144,10 +144,13 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
       <CollapsibleTrigger asChild>
-        <Button variant="outline" className="flex items-center justify-between gap-2">
+        <Button variant="outline" className="w-full flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <GitBranch className="h-4 w-4" />
             Push to Bitbucket
+            <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs">
+              {endpoints.length}
+            </span>
           </div>
           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>
@@ -159,6 +162,9 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
             <CardTitle className="flex items-center gap-2">
               <GitBranch className="h-4 w-4" />
               Push Test Collection to Bitbucket
+              <span className="text-sm font-normal text-muted-foreground">
+                {endpoints.length} endpoint{endpoints.length !== 1 ? 's' : ''}
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">

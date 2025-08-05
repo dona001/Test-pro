@@ -5,15 +5,18 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Clock, Globe, CheckCircle, AlertCircle, Copy } from 'lucide-react';
+import { Clock, Globe, CheckCircle, AlertCircle, Copy, ExternalLink, GitBranch } from 'lucide-react';
 import { ResponseValidation } from './ResponseValidation';
 import { useToast } from '@/hooks/use-toast';
 import { TestCodeGenerator } from './TestCodeGenerator';
 import { BDDCodeGenerator } from './BDDCodeGenerator';
 import { ValidationRule } from '@/types/validation';
 import { JiraIntegration } from './JiraIntegration';
+import { BitbucketIntegration } from './BitbucketIntegration';
 import { isFeatureEnabled } from '@/config';
 import { CORSErrorDisplay } from './CORSErrorDisplay';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ApiResponse {
   status: number;
@@ -66,34 +69,41 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
   const validateResponseData = (response: any): boolean => {
     return response && 
            typeof response === 'object' && 
-           response !== null &&
-           (response.status !== undefined || response.data !== undefined);
+           response.data !== undefined && 
+           response.status !== undefined;
   };
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
       await navigator.clipboard.writeText(text);
       toast({
-        title: "Copied!",
-        description: `${type} copied to clipboard`,
+        title: "Copied to clipboard",
+        description: `${type} copied successfully`,
       });
     } catch (error) {
       toast({
         title: "Copy failed",
-        description: "Unable to copy to clipboard",
+        description: "Failed to copy to clipboard",
         variant: "destructive",
       });
     }
   };
 
   const copyResponseBody = () => {
-    if (response) {
-      copyToClipboard(formatJson(response.data), "Response body");
+    if (response && response.data) {
+      const responseText = formatJson(response.data);
+      copyToClipboard(responseText, "Response body");
+    } else {
+      toast({
+        title: "No response data",
+        description: "Cannot copy response body due to CORS restrictions or network errors",
+        variant: "destructive",
+      });
     }
   };
 
   const copyHeaders = () => {
-    if (response && response.headers && typeof response.headers === 'object') {
+    if (response && response.headers && typeof response.headers === 'object' && Object.keys(response.headers).length > 0) {
       const headersText = Object.entries(response.headers)
         .map(([key, value]) => `${key}: ${value}`)
         .join('\n');
@@ -138,15 +148,38 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
 
   return (
     <div className="h-full flex flex-col">
+      {/* Integration buttons - show after successful execution, positioned at the top */}
+      {executionResult && executionResult.status === 'success' && requestConfig && (
+        <div className="flex gap-4 p-6 pb-0">
+          {isFeatureEnabled('jiraIntegration') && (
+            <JiraIntegration 
+              results={[executionResult]}
+              collectionName="Quick Test"
+            />
+          )}
+          {isFeatureEnabled('bitbucketIntegration') && (
+            <BitbucketIntegration 
+              endpoints={[{
+                id: '1',
+                name: `${requestConfig.method} ${requestConfig.url}`,
+                method: requestConfig.method,
+                url: requestConfig.url,
+                headers: requestConfig.headers,
+                body: requestConfig.body
+              }]} 
+              collectionName="Quick Test"
+            />
+          )}
+        </div>
+      )}
+
       {/* Response Content */}
       {showResponse && response && validateResponseData(response) ? (
         <div className="flex-1 p-6">
           <Tabs defaultValue="body" className="h-full flex flex-col">
-            <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="body">Response Body</TabsTrigger>
               <TabsTrigger value="headers">Headers ({response.headers && typeof response.headers === 'object' ? Object.keys(response.headers).length : 0})</TabsTrigger>
-              <TabsTrigger value="validation">Validation</TabsTrigger>
-              <TabsTrigger value="jira">Jira Integration</TabsTrigger>
             </TabsList>
             
             <TabsContent value="body" className="flex-1 flex flex-col">
@@ -220,30 +253,6 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                 </ScrollArea>
               </div>
             </TabsContent>
-            
-            <TabsContent value="validation" className="flex-1 flex flex-col">
-              <div className="flex-1">
-                {showValidation ? (
-                  <ResponseValidation response={response} onRulesChange={onValidationRulesChange} />
-                ) : (
-                  <div className="flex items-center justify-center h-[400px] text-gray-500">
-                    <p>Validation panel</p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="jira" className="flex-1 flex flex-col">
-              <div className="flex-1">
-                {executionResult && executionResult.status === 'success' ? (
-                  <JiraIntegration results={[executionResult]} />
-                ) : (
-                  <div className="flex items-center justify-center h-[400px] text-gray-500">
-                    <p>Jira integration is available after a successful test execution</p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
           </Tabs>
         </div>
       ) : showResponse && response && !validateResponseData(response) ? (
@@ -259,30 +268,76 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
         </div>
       ) : null}
 
-      {/* Code Generation Panel */}
-      {showCodeGen && isFeatureEnabled('testCodeGeneration') && (
-        <div className="p-6">
-          <TestCodeGenerator 
-            requestConfig={requestConfig} 
-            validationRules={validationRules as any}
-          />
-        </div>
+      {/* Validation Section - Collapsible by default, positioned at the bottom */}
+      {showValidation && (
+        <Collapsible defaultOpen={false} className="p-6">
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" className="w-full flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Validation Rules
+              </div>
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-4">
+            <ResponseValidation response={response} onRulesChange={onValidationRulesChange} />
+          </CollapsibleContent>
+        </Collapsible>
       )}
 
-      {/* BDD Code Generation Panel */}
-      {isFeatureEnabled('bddCodeGeneration') && requestConfig && response && response.status >= 200 && response.status < 300 && (
-        <div className="p-6">
-          <BDDCodeGenerator 
-            endpoints={[{
-              method: requestConfig.method,
-              path: new URL(requestConfig.url).pathname,
-              name: `${requestConfig.method.toLowerCase()}_${new URL(requestConfig.url).pathname.replace(/\//g, '_').replace(/^_|_$/g, '')}`,
-              description: `${requestConfig.method.toUpperCase()} ${requestConfig.url}`,
-              requestBody: requestConfig.body ? JSON.parse(requestConfig.body) : undefined,
-              responseBody: response?.data,
-            }]}
-          />
-        </div>
+      {/* Code Generation Panel - Collapsible by default, positioned at the bottom */}
+      {showCodeGen && isFeatureEnabled('testCodeGeneration') && validationRules && validationRules.length > 0 && (
+        <Collapsible defaultOpen={false} className="p-6">
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" className="w-full flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Test Code Generation
+                <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs">
+                  {validationRules.length}
+                </span>
+              </div>
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-4">
+            <TestCodeGenerator 
+              requestConfig={requestConfig} 
+              validationRules={validationRules as any}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
+      {/* BDD Code Generation Panel - Collapsible by default, positioned at the bottom */}
+      {isFeatureEnabled('bddCodeGeneration') && requestConfig && response && response.status >= 200 && response.status < 300 && validationRules && validationRules.length > 0 && (
+        <Collapsible defaultOpen={false} className="p-6">
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" className="w-full flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                BDD Code Generation
+                <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs">
+                  {validationRules.length}
+                </span>
+              </div>
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-4">
+            <BDDCodeGenerator 
+              endpoints={[{
+                method: requestConfig.method,
+                path: new URL(requestConfig.url).pathname,
+                name: `${requestConfig.method.toLowerCase()}_${new URL(requestConfig.url).pathname.replace(/\//g, '_').replace(/^_|_$/g, '')}`,
+                description: `${requestConfig.method.toUpperCase()} ${requestConfig.url}`,
+                requestBody: requestConfig.body ? JSON.parse(requestConfig.body) : undefined,
+                responseBody: response?.data,
+              }]}
+            />
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </div>
   );
