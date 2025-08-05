@@ -9,6 +9,22 @@ dist/
 build/
 .vite/
 
+# Maven build outputs
+target/
+*.jar
+*.war
+*.ear
+
+# Java
+*.class
+*.log
+hs_err_pid*
+
+# Spring Boot
+application-*.yml
+!application.yml
+!application-dev.yml
+
 # Environment variables
 
 
