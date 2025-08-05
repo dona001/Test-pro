@@ -1,0 +1,11 @@
+app:
+  environment: development
+  server:
+    ip:
+      development: localhost
+      production: 192.168.120.4
+
+logging:
+  level:
+    com.apitester.wrapper: DEBUG
+    org.springframework.web: DEBUG 
