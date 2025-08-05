@@ -36,7 +36,8 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
   const [jiraConfig, setJiraConfig] = useState({
     jiraUrl: '',
     projectKey: '',
-    apiToken: '',
+    username: '',
+    password: '',
     epicLink: '',
     syncMode: 'one-issue-per-endpoint'
   });
@@ -47,10 +48,10 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
   const totalCount = results.length;
 
   const handleSyncToJira = async () => {
-    if (!jiraConfig.jiraUrl || !jiraConfig.projectKey || !jiraConfig.apiToken) {
+    if (!jiraConfig.jiraUrl || !jiraConfig.projectKey || !jiraConfig.username || !jiraConfig.password) {
       toast({
         title: "Missing Configuration",
-        description: "Please fill in all required fields.",
+        description: "Please fill in Jira URL, Project Key, Username, and Password.",
         variant: "destructive"
       });
       return;
@@ -58,8 +59,10 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
 
     setIsLoading(true);
     try {
-      // Store config in localStorage for future use
-      localStorage.setItem('jiraConfig', JSON.stringify(jiraConfig));
+      // Store config in localStorage for future use (excluding password)
+      const configToStore = { ...jiraConfig };
+      delete configToStore.password;
+      localStorage.setItem('jiraConfig', JSON.stringify(configToStore));
 
       if (jiraConfig.syncMode === 'one-issue-per-endpoint') {
         await syncOneIssuePerEndpoint();
@@ -113,13 +116,23 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
   };
 
   const createJiraIssue = async (issueData: any) => {
-    const response = await fetch(`${jiraConfig.jiraUrl}/rest/api/2/issue`, {
+    // Route through our wrapper endpoint
+    const wrapperPayload = {
+      url: `${jiraConfig.jiraUrl}/rest/api/2/issue`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${btoa(`admin:${jiraConfig.apiToken}`)}`
+        'Authorization': `Basic ${btoa(`${jiraConfig.username}:${jiraConfig.password}`)}`
       },
-      body: JSON.stringify(issueData)
+      body: issueData
+    };
+
+    const response = await fetch('/api/wrapper', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(wrapperPayload)
     });
 
     if (!response.ok) {
@@ -168,7 +181,7 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
   React.useEffect(() => {
     const savedConfig = localStorage.getItem('jiraConfig');
     if (savedConfig) {
-      setJiraConfig(JSON.parse(savedConfig));
+      setJiraConfig(prev => ({ ...prev, ...JSON.parse(savedConfig) }));
     }
   }, []);
 
@@ -220,15 +233,26 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="apiToken">API Token *</Label>
-              <Input
-                id="apiToken"
-                type="password"
-                placeholder="Your Jira API token"
-                value={jiraConfig.apiToken}
-                onChange={(e) => setJiraConfig(prev => ({ ...prev, apiToken: e.target.value }))}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username *</Label>
+                <Input
+                  id="username"
+                  placeholder="your-email@company.com"
+                  value={jiraConfig.username}
+                  onChange={(e) => setJiraConfig(prev => ({ ...prev, username: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Your Jira password"
+                  value={jiraConfig.password}
+                  onChange={(e) => setJiraConfig(prev => ({ ...prev, password: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

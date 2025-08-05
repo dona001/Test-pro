@@ -41,15 +41,15 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
     branch: 'main',
     folderPath: 'src/test/java',
     username: '',
-    appPassword: '',
+    password: '',
     codeFormat: 'karate' as 'karate' | 'cucumber'
   });
 
   const handlePushToBitbucket = async () => {
-    if (!bitbucketConfig.workspace || !bitbucketConfig.repository || !bitbucketConfig.username || !bitbucketConfig.appPassword) {
+    if (!bitbucketConfig.workspace || !bitbucketConfig.repository || !bitbucketConfig.username || !bitbucketConfig.password) {
       toast({
         title: "Missing Configuration",
-        description: "Please fill in all required fields.",
+        description: "Please fill in workspace, repository, username, and password.",
         variant: "destructive"
       });
       return;
@@ -59,7 +59,7 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
     try {
       // Store config in localStorage for future use (excluding password)
       const configToStore = { ...bitbucketConfig };
-      delete (configToStore as any).appPassword;
+      delete configToStore.password;
       localStorage.setItem('bitbucketConfig', JSON.stringify(configToStore));
 
       // Generate test code for all endpoints
@@ -117,12 +117,22 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
     formData.append('branch', bitbucketConfig.branch);
     formData.append(filePath, file.content);
 
-    const response = await fetch(apiUrl, {
+    // Route through our wrapper endpoint
+    const wrapperPayload = {
+      url: apiUrl,
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${btoa(`${bitbucketConfig.username}:${bitbucketConfig.appPassword}`)}`
+        'Authorization': `Basic ${btoa(`${bitbucketConfig.username}:${bitbucketConfig.password}`)}`
       },
       body: formData
+    };
+
+    const response = await fetch('/api/wrapper', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(wrapperPayload)
     });
 
     if (!response.ok) {
@@ -221,13 +231,13 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="appPassword">App Password *</Label>
+                <Label htmlFor="password">Password *</Label>
                 <Input
-                  id="appPassword"
+                  id="password"
                   type="password"
-                  placeholder="your-app-password"
-                  value={bitbucketConfig.appPassword}
-                  onChange={(e) => setBitbucketConfig(prev => ({ ...prev, appPassword: e.target.value }))}
+                  placeholder="your-bitbucket-password"
+                  value={bitbucketConfig.password}
+                  onChange={(e) => setBitbucketConfig(prev => ({ ...prev, password: e.target.value }))}
                 />
               </div>
             </div>
