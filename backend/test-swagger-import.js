@@ -1,7 +1,7 @@
 const axios = require('axios');
 const config = require('./config');
 
-const PROXY_URL = config.getServerURL('/proxy');
+const WRAPPER_URL = config.getServerURL('/api/wrapper');
 
 // Test Swagger URLs
 const testUrls = [
@@ -21,7 +21,10 @@ async function testSwaggerImport() {
     try {
       console.log(`📡 Testing: ${url}`);
       
-      const response = await axios.get(`${PROXY_URL}?url=${encodeURIComponent(url)}`);
+      const response = await axios.post(WRAPPER_URL, {
+        url: url,
+        method: 'GET'
+      });
       
       if (response.data.success) {
         console.log(`✅ Success: ${response.status} ${response.statusText}`);
@@ -60,7 +63,10 @@ async function testKnownSwagger() {
   try {
     console.log(`📡 Testing: ${swaggerUrl}`);
     
-    const response = await axios.get(`${PROXY_URL}?url=${encodeURIComponent(swaggerUrl)}`);
+    const response = await axios.post(WRAPPER_URL, {
+      url: swaggerUrl,
+      method: 'GET'
+    });
     
     if (response.data.success) {
       console.log(`✅ Success: ${response.status} ${response.statusText}`);

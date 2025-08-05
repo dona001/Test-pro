@@ -1,18 +1,9 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Zap, FileText } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
-
+import { Zap } from 'lucide-react';
 
 export const Header = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const isManualTesting = location.pathname === '/';
-  const isCollectionTesting = location.pathname === '/collection';
-
   return (
     <header className="bg-background border-b border-border shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
@@ -27,30 +18,6 @@ export const Header = () => {
                 <p className="text-xs text-muted-foreground">Professional API Testing Suite</p>
               </div>
             </div>
-            
-            <nav className="flex items-center space-x-4">
-              <Button
-                variant={isManualTesting ? "default" : "ghost"}
-                size="sm"
-                onClick={() => navigate('/')}
-              >
-                Manual Testing
-              </Button>
-              <Button
-                variant={isCollectionTesting ? "default" : "ghost"}
-                size="sm"
-                onClick={() => navigate('/collection')}
-              >
-                Collection Testing
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/bdd-test')}
-              >
-                BDD Code Gen
-              </Button>
-            </nav>
           </div>
 
           <div className="flex items-center space-x-4">

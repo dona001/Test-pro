@@ -1,107 +1,156 @@
 # API Tester Pro
 
-A powerful API testing tool with built-in CORS proxy, collection management, and comprehensive testing features.
-
-## 🚀 Quick Start
-
-### Using Docker (Recommended)
-```bash
-# Build and run with Docker Compose
-docker-compose up --build
-
-# Access the application
-# Frontend: http://localhost:3000
-# Backend Proxy: http://localhost:3001
-```
-
-### Manual Setup
-```bash
-# Install dependencies
-npm install
-cd backend && npm install && cd ..
-
-# Start backend proxy
-cd backend && npm start
-
-# Start frontend (in new terminal)
-npm run dev
-```
-
-## 🛠️ Features
-
-- **API Testing**: Test any REST API endpoint
-- **CORS Proxy**: Built-in backend proxy for CORS-free testing
-- **Collection Management**: Import and test Postman collections
-- **Swagger Support**: Import OpenAPI/Swagger specifications
-- **Response Validation**: Custom validation rules
-- **Test Code Generation**: Generate test code for your APIs
-- **Multi-endpoint Testing**: Batch test multiple endpoints
-- **Dual Reporting System**: Extent Reports (immediate) and Allure Reports (advanced)
-- **Error Handling**: Comprehensive error handling and logging
+A comprehensive API testing tool with validation, reporting, and integration capabilities.
 
 ## 📁 Project Structure
 
 ```
-├── src/                    # Frontend source code
-├── backend/               # CORS proxy server
-├── sample-files/          # Sample API collections
-├── Dockerfile            # Docker configuration
-└── docker-compose.yml    # Docker Compose setup
+├── backend/           # Express-based CORS wrapper server
+│   ├── server.js     # Main server file
+│   ├── config/       # Configuration files
+│   ├── routes/       # API routes
+│   ├── middleware/   # Express middleware
+│   ├── utils/        # Utility functions
+│   └── README.md     # Backend documentation
+│
+├── src/              # React + Vite application
+│   ├── components/   # React components
+│   ├── pages/        # Page components
+│   ├── api/          # API utilities
+│   └── utils/        # Utility functions
+│
+├── public/           # Static assets
+└── README.md         # This file
 ```
+
+## 🚀 Quick Start
+
+### Backend
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+The backend server will start on `http://localhost:3001`
+
+### Frontend
+
+```bash
+npm install
+npm run dev
+```
+
+The frontend application will start on `http://localhost:8080`
+
+## 🎯 Features
+
+### Backend Features
+- **CORS Wrapper Endpoint**: `POST /api/wrapper` - Handles all API requests
+- **Health Check**: `GET /health` - Server health monitoring
+- **Security**: URL validation, blocked hosts protection
+- **Error Handling**: Comprehensive error handling and logging
+- **Performance**: Optimized response times
+
+### Frontend Features
+- **API Testing Interface**: Test any HTTP method with custom headers and body
+- **CORS-Free Testing**: Uses backend wrapper to avoid CORS issues
+- **Response Validation**: Comprehensive response analysis and validation
+- **Collection Testing**: Import and test API collections
+- **Smart Import**: Import from Postman collections, Swagger/OpenAPI specs
+- **Modern UI**: Built with React, TypeScript, and Tailwind CSS
 
 ## 🔧 Development
 
-```bash
-# Install dependencies
-npm install
+### Running Both Applications
 
-# Start development server
+1. **Start Backend**:
+   ```bash
+   cd backend
+   npm run dev
+   ```
+
+2. **Start Frontend** (in new terminal):
+   ```bash
+   npm run dev
+   ```
+
+3. **Access Application**:
+   - Frontend: http://localhost:8080
+   - Backend API: http://localhost:3001
+
+### Testing
+
+**Backend Tests**:
+```bash
+cd backend
+node test-wrapper-endpoint.js
+node test-proxy.js
+node test-swagger-import.js
+node test-frontend-integration.js
+```
+
+**Frontend Development**:
+```bash
 npm run dev
-
-# Build for production
-npm run build
-
-# Start backend proxy
-cd backend && npm start
 ```
 
-## 🐳 Docker Commands
+## 📦 Package Independence
 
+Each part is self-contained and can run independently:
+
+- **Backend**: Can run without frontend for API testing
+- **Frontend**: Can connect to any backend with the same API interface
+- **Dependencies**: Each manages its own dependencies
+- **Configuration**: Separate configuration files
+
+## 🔗 API Communication
+
+The frontend communicates with the backend through the wrapper endpoint:
+
+```typescript
+// Frontend API call
+const response = await fetch('http://localhost:3001/api/wrapper', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    url: 'https://api.example.com/data',
+    method: 'GET',
+    headers: { 'Authorization': 'Bearer token' }
+  })
+});
+```
+
+## 🛠️ Build and Deploy
+
+### Backend Deployment
 ```bash
-# Build and run
-docker-compose up --build
-
-# Run in background
-docker-compose up -d
-
-# Stop services
-docker-compose down
-
-# View logs
-docker-compose logs -f
+cd backend
+npm install
+npm start
 ```
 
-## 📊 Health Checks
+### Frontend Build
+```bash
+npm install
+npm run build
+```
 
-- **Frontend**: http://localhost:3000
-- **Backend Proxy**: http://localhost:3001/health
+## 📚 Documentation
 
-## 🎯 Usage
+- [Backend Documentation](backend/README.md)
+- [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md)
+- [Features Documentation](FEATURES_DOCUMENTATION.md)
+- [Quick Commands](QUICK_COMMANDS.md)
 
-1. **Import Collections**: Use the Collection Testing section to import Postman collections or Swagger files
-2. **Test APIs**: Use the main interface to test individual endpoints
-3. **CORS Testing**: The built-in proxy handles CORS restrictions automatically
-4. **Validation**: Add custom validation rules for response testing
-5. **Generate Reports**: Choose between Extent Reports (immediate) or Allure Reports (advanced)
-6. **Code Generation**: Generate test code for your APIs
+## 🤝 Contributing
 
-## 🔒 Security
+1. Make changes in the appropriate directory (backend/ or src/)
+2. Test changes in both applications
+3. Update documentation as needed
+4. Ensure both applications work together
 
-- Built-in CORS proxy for secure API testing
-- Rate limiting on proxy server
-- Input validation and sanitization
-- No external proxy dependencies
-
-## 📝 License
+## 📄 License
 
 MIT License 

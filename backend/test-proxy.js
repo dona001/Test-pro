@@ -1,7 +1,7 @@
 const axios = require('axios');
 const config = require('./config');
 
-const PROXY_URL = config.getServerURL('/proxy');
+const WRAPPER_URL = config.getServerURL('/api/wrapper');
 const TEST_API = 'https://reqres.in/api';
 
 // Test data
@@ -24,7 +24,10 @@ async function testProxy() {
   try {
     // Test 1: GET request
     console.log('1️⃣ Testing GET request...');
-    const getResponse = await axios.get(`${PROXY_URL}?url=${encodeURIComponent(`${TEST_API}/users/2`)}`);
+    const getResponse = await axios.post(WRAPPER_URL, {
+      url: `${TEST_API}/users/2`,
+      method: 'GET'
+    });
     console.log('✅ GET successful:', getResponse.data.success);
     console.log('Status:', getResponse.data.status);
     console.log('Data received:', getResponse.data.data ? 'Yes' : 'No');
@@ -32,10 +35,13 @@ async function testProxy() {
 
     // Test 2: POST request
     console.log('2️⃣ Testing POST request...');
-    const postResponse = await axios.post(`${PROXY_URL}?url=${encodeURIComponent(`${TEST_API}/users`)}`, testUser, {
+    const postResponse = await axios.post(WRAPPER_URL, {
+      url: `${TEST_API}/users`,
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: testUser
     });
     console.log('✅ POST successful:', postResponse.data.success);
     console.log('Status:', postResponse.data.status);
@@ -44,10 +50,13 @@ async function testProxy() {
 
     // Test 3: PUT request
     console.log('3️⃣ Testing PUT request...');
-    const putResponse = await axios.put(`${PROXY_URL}?url=${encodeURIComponent(`${TEST_API}/users/2`)}`, testUserUpdate, {
+    const putResponse = await axios.post(WRAPPER_URL, {
+      url: `${TEST_API}/users/2`,
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: testUserUpdate
     });
     console.log('✅ PUT successful:', putResponse.data.success);
     console.log('Status:', putResponse.data.status);
@@ -56,7 +65,10 @@ async function testProxy() {
 
     // Test 4: DELETE request
     console.log('4️⃣ Testing DELETE request...');
-    const deleteResponse = await axios.delete(`${PROXY_URL}?url=${encodeURIComponent(`${TEST_API}/users/2`)}`);
+    const deleteResponse = await axios.post(WRAPPER_URL, {
+      url: `${TEST_API}/users/2`,
+      method: 'DELETE'
+    });
     console.log('✅ DELETE successful:', deleteResponse.data.success);
     console.log('Status:', deleteResponse.data.status);
     console.log('---\n');
@@ -84,20 +96,26 @@ async function testContentTypes() {
     formData.append('name', 'John Doe');
     formData.append('job', 'Developer');
 
-    const formResponse = await axios.post(`${PROXY_URL}?url=${encodeURIComponent(`${TEST_API}/users`)}`, formData, {
+    const formResponse = await axios.post(WRAPPER_URL, {
+      url: `${TEST_API}/users`,
+      method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
-      }
+      },
+      body: Object.fromEntries(formData)
     });
     console.log('✅ Form data POST successful:', formResponse.data.success);
     console.log('---\n');
 
     // Test with plain text
     console.log('2️⃣ Testing with plain text...');
-    const textResponse = await axios.post(`${PROXY_URL}?url=${encodeURIComponent(`${TEST_API}/users`)}`, 'Hello World', {
+    const textResponse = await axios.post(WRAPPER_URL, {
+      url: `${TEST_API}/users`,
+      method: 'POST',
       headers: {
         'Content-Type': 'text/plain'
-      }
+      },
+      body: 'Hello World'
     });
     console.log('✅ Plain text POST successful:', textResponse.data.success);
     console.log('---\n');

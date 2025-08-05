@@ -46,7 +46,7 @@ const getProxyPort = () => {
 export const getProxyBase = () => {
   const hostname = getProxyHostname();
   const port = getProxyPort();
-  return `http://${hostname}:${port}/proxy?url=`;
+  return `http://${hostname}:${port}/api/wrapper`;
 };
 
 export const getProxyHealthUrl = () => {

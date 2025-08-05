@@ -5,7 +5,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const https = require('https');
-const config = require('./config');
+const config = require('./config/config');
 
 const app = express();
 const PORT = config.port;
@@ -117,31 +117,44 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    service: 'CORS Proxy Server',
+    service: 'CORS Wrapper Server',
     version: '1.0.0',
     environment: config.environment,
     serverIP: typeof config.current.serverIP === 'function' ? config.current.serverIP() : config.current.serverIP
   });
 });
 
-// Main proxy endpoint
-app.all('/proxy', async (req, res) => {
-  const { url } = req.query;
+// API Wrapper endpoint for frontend proxy calls
+app.post('/api/wrapper', async (req, res) => {
+  const { url, method, headers, body } = req.body;
 
+  // Validate required fields
   if (!url) {
     return res.status(400).json({
-      error: 'Missing URL parameter',
-      message: 'Please provide a URL parameter: /proxy?url=<target_url>',
+      success: false,
+      error: 'Missing required field: url',
+      message: 'Please provide a target URL in the request body',
     });
   }
 
+  if (!method) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing required field: method',
+      message: 'Please provide an HTTP method (GET, POST, PUT, DELETE, etc.)',
+    });
+  }
+
+  // Validate URL format
   let targetUrl;
   try {
     targetUrl = new URL(url);
   } catch (error) {
-    return res.status(408).json({
-      error: 'Invalid URL',
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid URL format',
       message: 'Please provide a valid URL',
+      receivedUrl: url,
     });
   }
 
@@ -155,80 +168,45 @@ app.all('/proxy', async (req, res) => {
 
   if (blockedHosts.includes(targetUrl.hostname)) {
     return res.status(400).json({
+      success: false,
       error: 'Blocked hostname',
       message: `Cannot proxy requests to ${targetUrl.hostname} for security reasons`,
     });
   }
 
-  console.log(`🌐 Proxying ${req.method} request to: ${targetUrl.href}`);
-  console.log(`📋 Request headers:`, req.headers);
-  console.log(`📦 Request body:`, req.body);
-  console.log(`📄 Content-Type:`, req.headers['content-type']);
+  console.log(`🌐 API Wrapper: ${method} request to: ${targetUrl.href}`);
+  console.log(`📋 Request headers:`, headers);
+  console.log(`📦 Request body:`, body);
 
   const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
   const axiosConfig = {
-    method: req.method,
+    method: method.toUpperCase(),
     url: targetUrl.href,
     httpsAgent,
     headers: {
-      'User-Agent': 'API-Tester-Pro-CORS-Proxy/1.0.0',
-      'Accept': req.headers.accept || '*/*',
-      'Accept-Encoding': req.headers['accept-encoding'] || 'gzip, deflate, br',
+      'User-Agent': 'API-Tester-Pro-Wrapper/1.0.0',
+      'Accept': '*/*',
+      'Accept-Encoding': 'gzip, deflate, br',
       'Connection': 'keep-alive',
-      'Cache-Control': req.headers['cache-control'] || 'no-cache',
+      'Cache-Control': 'no-cache',
     },
     timeout: 60000,
     maxRedirects: 5,
     validateStatus: () => true,
   };
 
-  // Attach request body if needed
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
-    // Handle different content types
-    const contentType = req.headers['content-type'] || '';
-    
-    if (req.body && req.body !== null && req.body !== 'null') {
-      if (contentType.includes('application/json')) {
-        axiosConfig.data = req.body;
-      } else if (contentType.includes('application/x-www-form-urlencoded')) {
-        // Convert form data to URLSearchParams
-        if (typeof req.body === 'object') {
-          const formData = new URLSearchParams();
-          Object.keys(req.body).forEach(key => {
-            formData.append(key, req.body[key]);
-          });
-          axiosConfig.data = formData;
-        } else {
-          axiosConfig.data = req.body;
-        }
-      } else if (contentType.includes('text/') || contentType.includes('application/xml')) {
-        // Handle text content
-        axiosConfig.data = req.body;
-      } else {
-        // Default to JSON if no content type specified
-        axiosConfig.data = req.body;
-        if (!contentType) {
-          axiosConfig.headers['Content-Type'] = 'application/json';
-        }
-      }
-      
-      // Set Content-Type header if not already present
-      if (!req.headers['content-type']) {
-        axiosConfig.headers['Content-Type'] = 'application/json';
-      }
-    } else {
-      console.log('No request body to send or body is null/undefined');
-    }
+  // Add custom headers if provided
+  if (headers && typeof headers === 'object') {
+    Object.keys(headers).forEach((header) => {
+      axiosConfig.headers[header] = headers[header];
+    });
   }
 
-  // Copy non-sensitive headers
-  const sensitiveHeaders = ['host', 'origin', 'referer', 'user-agent'];
-  Object.keys(req.headers).forEach((header) => {
-    if (!sensitiveHeaders.includes(header.toLowerCase())) {
-      axiosConfig.headers[header] = req.headers[header];
-    }
-  });
+  // Add request body for methods that support it
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase()) && body !== undefined) {
+    axiosConfig.data = body;
+  }
 
   try {
     const startTime = Date.now();
@@ -236,9 +214,10 @@ app.all('/proxy', async (req, res) => {
     const endTime = Date.now();
 
     console.log(
-      `Proxy successful: ${response.status} ${response.statusText} (${endTime - startTime}ms) - Target URL: ${targetUrl.href}`
+      `API Wrapper successful: ${response.status} ${response.statusText} (${endTime - startTime}ms) - Target URL: ${targetUrl.href}`
     );
 
+    // Extract response headers
     const responseHeaders = {};
     Object.keys(response.headers).forEach((header) => {
       if (!['content-encoding', 'transfer-encoding', 'connection'].includes(header.toLowerCase())) {
@@ -246,30 +225,49 @@ app.all('/proxy', async (req, res) => {
       }
     });
 
-    res.status(response.status);
-    Object.keys(responseHeaders).forEach((header) => {
-      res.set(header, responseHeaders[header]);
-    });
-
+    // Return the full response
     res.json({
       success: true,
       status: response.status,
       statusText: response.statusText,
       headers: responseHeaders,
       data: response.data,
-      proxyInfo: {
+      wrapperInfo: {
         timestamp: new Date().toISOString(),
         responseTime: endTime - startTime,
         targetUrl: targetUrl.href,
+        method: method.toUpperCase(),
       },
     });
   } catch (error) {
-    console.error(`Proxy error: ${error.message} - Target URL: ${targetUrl.href}`);
-    res.status(500).json({
+    console.error(`API Wrapper error: ${error.message} - Target URL: ${targetUrl.href}`);
+    
+    // Handle different types of errors
+    let statusCode = 500;
+    let errorMessage = error.message;
+    
+    if (error.code === 'ENOTFOUND') {
+      statusCode = 404;
+      errorMessage = 'Target URL not found';
+    } else if (error.code === 'ECONNREFUSED') {
+      statusCode = 503;
+      errorMessage = 'Connection refused by target server';
+    } else if (error.code === 'ETIMEDOUT') {
+      statusCode = 504;
+      errorMessage = 'Request timeout';
+    } else if (error.response) {
+      // Forward the actual response status from the target server
+      statusCode = error.response.status;
+      errorMessage = error.response.statusText || error.message;
+    }
+
+    res.status(statusCode).json({
       success: false,
-      error: 'Proxy request failed',
-      message: error.message,
+      error: 'API Wrapper request failed',
+      message: errorMessage,
+      status: statusCode,
       timestamp: new Date().toISOString(),
+      targetUrl: targetUrl.href,
     });
   }
 });
@@ -290,7 +288,7 @@ app.use('*', (req, res) => {
     success: false,
     error: 'Not found',
     message: 'The requested endpoint does not exist',
-    availableEndpoints: ['/health', '/proxy'],
+    availableEndpoints: ['/health', '/api/wrapper'],
   });
 });
 
@@ -301,7 +299,7 @@ app.listen(PORT, '0.0.0.0', () => {
   
   console.log(`${messages.serverRunning} ${PORT}`);
   console.log(`${messages.healthCheck}`);
-  console.log(`${messages.proxyEndpoint}`);
+  console.log(`${messages.wrapperEndpoint}`);
   console.log(`${messages.corsEnabled}`);
   console.log(`${messages.startedAt} ${new Date().toISOString()}`);
   console.log(`🌍 Environment: ${config.environment}`);

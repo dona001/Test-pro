@@ -1,8 +1,8 @@
 
-// Backend Proxy Integration for Collection Testing
-// All API calls go through the backend proxy server
+// Backend Wrapper Integration for Collection Testing
+// All API calls go through the backend wrapper server
 
-const BACKEND_PROXY = 'http://localhost:3001/proxy?url=';
+const BACKEND_WRAPPER = 'http://localhost:3001/api/wrapper';
 
 export async function proxyApiCall(config: {
   method: string;
@@ -13,65 +13,65 @@ export async function proxyApiCall(config: {
   try {
     console.log(`🚀 Collection API Request: ${config.method} ${config.url}`);
     
-    // Use backend proxy for all requests
-    const proxyUrl = BACKEND_PROXY + encodeURIComponent(config.url);
+    // Use backend wrapper for all requests
+    const wrapperUrl = BACKEND_WRAPPER;
     
-    console.log(`🛡️ Using backend proxy: ${proxyUrl}`);
+    console.log(`🛡️ Using backend wrapper: ${wrapperUrl}`);
     
     const startTime = Date.now();
     
-    const response = await fetch(proxyUrl, {
+    // Prepare wrapper payload
+    const wrapperPayload = {
+      url: config.url,
       method: config.method,
+      headers: config.headers,
+      body: config.body ? JSON.parse(config.body) : undefined
+    };
+    
+    const response = await fetch(wrapperUrl, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...config.headers,
       },
-      body: config.body,
+      body: JSON.stringify(wrapperPayload),
     });
     
     const endTime = Date.now();
     
     if (!response.ok) {
-      console.log(`⚠️ Backend proxy failed: ${response.status} ${response.statusText}`);
-      throw new Error(`Backend proxy failed: ${response.status} ${response.statusText}`);
+      console.log(`⚠️ Backend wrapper failed: ${response.status} ${response.statusText}`);
+      throw new Error(`Backend wrapper failed: ${response.status} ${response.statusText}`);
     }
     
-    console.log(`✅ Backend proxy successful! (${endTime - startTime}ms)`);
+    console.log(`✅ Backend wrapper successful! (${endTime - startTime}ms)`);
     
-    const responseData = await response.text();
+    const responseData = await response.json();
     
-    let parsedData;
-    try {
-      parsedData = JSON.parse(responseData);
-    } catch {
-      parsedData = responseData;
-    }
-    
-    // Handle backend proxy response format
-    if (parsedData.success) {
+    // Handle backend wrapper response format
+    if (responseData.success) {
       return {
-        status: parsedData.status,
-        statusText: parsedData.statusText,
-        headers: parsedData.headers || {},
-        data: parsedData.data,
+        status: responseData.status,
+        statusText: responseData.statusText,
+        headers: responseData.headers || {},
+        data: responseData.data,
       };
     } else {
       return {
         status: response.status,
         statusText: response.statusText,
         headers: Object.fromEntries(response.headers.entries()),
-        data: parsedData,
+        data: responseData,
       };
     }
     
   } catch (error) {
-    console.log(`❌ Backend proxy error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.log(`❌ Backend wrapper error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     
     // Check if it's a CORS error
     if (error instanceof Error && error.message.includes('CORS')) {
       throw new Error(`CORS error: The request was blocked due to CORS policy. Please check if the target API allows cross-origin requests.`);
     }
     
-    throw new Error(`Backend proxy failed. Please ensure the proxy server is running on localhost:3001. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Backend wrapper failed. Please ensure the wrapper server is running on localhost:3001. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
