@@ -40,16 +40,36 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
     repository: '',
     branch: 'main',
     folderPath: 'src/test/java',
+    authMethod: 'app-password' as 'app-password' | 'username-password',
     username: '',
     appPassword: '',
+    password: '',
     codeFormat: 'karate' as 'karate' | 'cucumber'
   });
 
   const handlePushToBitbucket = async () => {
-    if (!bitbucketConfig.workspace || !bitbucketConfig.repository || !bitbucketConfig.username || !bitbucketConfig.appPassword) {
+    if (!bitbucketConfig.workspace || !bitbucketConfig.repository || !bitbucketConfig.username) {
       toast({
         title: "Missing Configuration",
-        description: "Please fill in all required fields.",
+        description: "Please fill in workspace, repository, and username.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (bitbucketConfig.authMethod === 'app-password' && !bitbucketConfig.appPassword) {
+      toast({
+        title: "Missing Configuration",
+        description: "Please fill in App Password for App Password authentication.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (bitbucketConfig.authMethod === 'username-password' && !bitbucketConfig.password) {
+      toast({
+        title: "Missing Configuration",
+        description: "Please fill in password for basic authentication.",
         variant: "destructive"
       });
       return;
@@ -57,9 +77,10 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
 
     setIsLoading(true);
     try {
-      // Store config in localStorage for future use (excluding password)
+      // Store config in localStorage for future use (excluding passwords)
       const configToStore = { ...bitbucketConfig };
       delete (configToStore as any).appPassword;
+      delete (configToStore as any).password;
       localStorage.setItem('bitbucketConfig', JSON.stringify(configToStore));
 
       // Generate test code for all endpoints
@@ -117,10 +138,18 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
     formData.append('branch', bitbucketConfig.branch);
     formData.append(filePath, file.content);
 
+    let authHeader: string;
+    
+    if (bitbucketConfig.authMethod === 'app-password') {
+      authHeader = `Basic ${btoa(`${bitbucketConfig.username}:${bitbucketConfig.appPassword}`)}`;
+    } else {
+      authHeader = `Basic ${btoa(`${bitbucketConfig.username}:${bitbucketConfig.password}`)}`;
+    }
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${btoa(`${bitbucketConfig.username}:${bitbucketConfig.appPassword}`)}`
+        'Authorization': authHeader
       },
       body: formData
     });
@@ -210,16 +239,30 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Username *</Label>
-                <Input
-                  id="username"
-                  placeholder="your-username"
-                  value={bitbucketConfig.username}
-                  onChange={(e) => setBitbucketConfig(prev => ({ ...prev, username: e.target.value }))}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label>Authentication Method</Label>
+              <Select value={bitbucketConfig.authMethod} onValueChange={(value: 'app-password' | 'username-password') => setBitbucketConfig(prev => ({ ...prev, authMethod: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="app-password">App Password (Recommended)</SelectItem>
+                  <SelectItem value="username-password">Username & Password</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="username">Username *</Label>
+              <Input
+                id="username"
+                placeholder="your-username"
+                value={bitbucketConfig.username}
+                onChange={(e) => setBitbucketConfig(prev => ({ ...prev, username: e.target.value }))}
+              />
+            </div>
+
+            {bitbucketConfig.authMethod === 'app-password' ? (
               <div className="space-y-2">
                 <Label htmlFor="appPassword">App Password *</Label>
                 <Input
@@ -229,8 +272,25 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
                   value={bitbucketConfig.appPassword}
                   onChange={(e) => setBitbucketConfig(prev => ({ ...prev, appPassword: e.target.value }))}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Create an App Password in <a href="https://bitbucket.org/account/settings/app-passwords/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Bitbucket Account Settings</a>
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="your-bitbucket-password"
+                  value={bitbucketConfig.password}
+                  onChange={(e) => setBitbucketConfig(prev => ({ ...prev, password: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use your Bitbucket account password (not recommended for security reasons)
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Code Format</Label>

@@ -36,7 +36,10 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
   const [jiraConfig, setJiraConfig] = useState({
     jiraUrl: '',
     projectKey: '',
+    authMethod: 'api-token' as 'api-token' | 'username-password',
+    username: '',
     apiToken: '',
+    password: '',
     epicLink: '',
     syncMode: 'one-issue-per-endpoint'
   });
@@ -47,10 +50,28 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
   const totalCount = results.length;
 
   const handleSyncToJira = async () => {
-    if (!jiraConfig.jiraUrl || !jiraConfig.projectKey || !jiraConfig.apiToken) {
+    if (!jiraConfig.jiraUrl || !jiraConfig.projectKey) {
       toast({
         title: "Missing Configuration",
-        description: "Please fill in all required fields.",
+        description: "Please fill in Jira URL and Project Key.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (jiraConfig.authMethod === 'api-token' && (!jiraConfig.username || !jiraConfig.apiToken)) {
+      toast({
+        title: "Missing Configuration",
+        description: "Please fill in username and API token for API token authentication.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (jiraConfig.authMethod === 'username-password' && (!jiraConfig.username || !jiraConfig.password)) {
+      toast({
+        title: "Missing Configuration",
+        description: "Please fill in username and password for basic authentication.",
         variant: "destructive"
       });
       return;
@@ -58,8 +79,11 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
 
     setIsLoading(true);
     try {
-      // Store config in localStorage for future use
-      localStorage.setItem('jiraConfig', JSON.stringify(jiraConfig));
+      // Store config in localStorage for future use (excluding passwords)
+      const configToStore = { ...jiraConfig };
+      delete configToStore.password;
+      delete configToStore.apiToken;
+      localStorage.setItem('jiraConfig', JSON.stringify(configToStore));
 
       if (jiraConfig.syncMode === 'one-issue-per-endpoint') {
         await syncOneIssuePerEndpoint();
@@ -113,11 +137,19 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
   };
 
   const createJiraIssue = async (issueData: any) => {
+    let authHeader: string;
+    
+    if (jiraConfig.authMethod === 'api-token') {
+      authHeader = `Basic ${btoa(`${jiraConfig.username}:${jiraConfig.apiToken}`)}`;
+    } else {
+      authHeader = `Basic ${btoa(`${jiraConfig.username}:${jiraConfig.password}`)}`;
+    }
+
     const response = await fetch(`${jiraConfig.jiraUrl}/rest/api/2/issue`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${btoa(`admin:${jiraConfig.apiToken}`)}`
+        'Authorization': authHeader
       },
       body: JSON.stringify(issueData)
     });
@@ -168,7 +200,7 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
   React.useEffect(() => {
     const savedConfig = localStorage.getItem('jiraConfig');
     if (savedConfig) {
-      setJiraConfig(JSON.parse(savedConfig));
+      setJiraConfig(prev => ({ ...prev, ...JSON.parse(savedConfig) }));
     }
   }, []);
 
@@ -221,15 +253,57 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="apiToken">API Token *</Label>
+              <Label>Authentication Method</Label>
+              <Select value={jiraConfig.authMethod} onValueChange={(value: 'api-token' | 'username-password') => setJiraConfig(prev => ({ ...prev, authMethod: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="api-token">API Token (Recommended)</SelectItem>
+                  <SelectItem value="username-password">Username & Password</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="username">Username *</Label>
               <Input
-                id="apiToken"
-                type="password"
-                placeholder="Your Jira API token"
-                value={jiraConfig.apiToken}
-                onChange={(e) => setJiraConfig(prev => ({ ...prev, apiToken: e.target.value }))}
+                id="username"
+                placeholder="your-email@company.com"
+                value={jiraConfig.username}
+                onChange={(e) => setJiraConfig(prev => ({ ...prev, username: e.target.value }))}
               />
             </div>
+
+            {jiraConfig.authMethod === 'api-token' ? (
+              <div className="space-y-2">
+                <Label htmlFor="apiToken">API Token *</Label>
+                <Input
+                  id="apiToken"
+                  type="password"
+                  placeholder="Your Jira API token"
+                  value={jiraConfig.apiToken}
+                  onChange={(e) => setJiraConfig(prev => ({ ...prev, apiToken: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Get your API token from <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Atlassian Account Settings</a>
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Your Jira password"
+                  value={jiraConfig.password}
+                  onChange={(e) => setJiraConfig(prev => ({ ...prev, password: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use your Jira account password (not recommended for security reasons)
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="epicLink">Epic Link (Optional)</Label>
