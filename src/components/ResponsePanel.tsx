@@ -26,7 +26,6 @@ interface ApiResponse {
   responseTime: number;
 }
 
-
 interface ResponsePanelProps {
   response: ApiResponse | null;
   loading: boolean;
@@ -56,7 +55,6 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
   executionResult
 }) => {
   const { toast } = useToast();
-
 
   const formatJson = (obj: any) => {
     try {
@@ -195,7 +193,7 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                   Copy JSON
                 </Button>
               </div>
-              {/* Fixed height scrollable container for response body */}
+              {/* Simple response body display */}
               <div className="flex-1 border rounded-lg bg-gray-50/50 overflow-hidden">
                 <ScrollArea className="h-[400px] p-4">
                   {response.status === 0 && response.data?.error ? (
