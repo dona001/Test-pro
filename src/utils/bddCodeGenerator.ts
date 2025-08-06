@@ -102,35 +102,43 @@ export class BDDCodeGenerator {
     private generateFeatureFile(endpoint: Endpoint, featureName: string) {
         const method = endpoint.method.toUpperCase();
         const path = endpoint.path;
-        const description = endpoint.description || `${method} ${path}`;
+        const description = endpoint.description || `${method} ${this.getResourceFromPath(path)}`;
+        const resource = this.getResourceFromPath(path);
+        const action = this.getActionFromMethod(method);
 
+        // Use OCBC enterprise framework by default
+        return this.generateEnterpriseFeatureFile(endpoint, featureName, description, method, resource, action);
+    }
+
+    private generateEnterpriseFeatureFile(endpoint: Endpoint, featureName: string, description: string, method: string, resource: string, action: string) {
+        const responseData = endpoint.actualResponse?.data || endpoint.responseBody;
+        const hasResponseData = responseData && Object.keys(responseData).length > 0;
+        const hasValidationRules = endpoint.validationRules && endpoint.validationRules.length > 0;
+        
+        // Combine response data and validation rules for examples
+        const exampleData = this.generateExampleData(endpoint, responseData);
+        
         let content = `Feature: ${description}
 
-  @${method.toLowerCase()} @${this.getTagFromPath(path)}
-  Scenario: Successfully ${this.getActionFromMethod(method)} ${this.getResourceFromPath(path)} - Positive
-    Given I prepare a valid ${this.getResourceFromPath(path)} ${this.getActionFromMethod(method)} payload
-    When I send a ${method} request to "${path}"
-    Then the response status code should be ${this.getExpectedStatus(method)}
-    And the response should contain the correct ${this.getResourceFromPath(path)} details
+  @${method.toLowerCase()} @${this.getTagFromPath(endpoint.path)}
+  Scenario Outline: Successfully ${action} ${resource} - Positive
+    Given I prepare a valid ${resource} ${action} payload
+    When I send a ${method} request for ${resource.toLowerCase().replace(/\s+/g, '_')}
+${this.generateFeatureValidationSteps(endpoint)}
+    Examples:
+      | ${this.generateExampleHeaders(exampleData)} |
+      | ${this.generateExampleValues(exampleData)} |
+`;
 
-  @${method.toLowerCase()} @${this.getTagFromPath(path)} @negative
-  Scenario: Fail to ${this.getActionFromMethod(method)} ${this.getResourceFromPath(path)} with invalid data
-    Given I prepare an invalid ${this.getResourceFromPath(path)} ${this.getActionFromMethod(method)} payload
-    When I send a ${method} request to "${path}"
+        // Add negative scenario
+        content += `
+  @${method.toLowerCase()} @${this.getTagFromPath(endpoint.path)} @negative
+  Scenario: Fail to ${action} ${resource} with invalid data
+    Given I prepare an invalid ${resource} ${action} payload
+    When I send a ${method} request for ${resource.toLowerCase().replace(/\s+/g, '_')}
     Then the response status code should be 400
     And the response should contain an error message
 `;
-
-        if (method === 'GET' && path.includes('{')) {
-            content += `
-  @${method.toLowerCase()} @${this.getTagFromPath(path)}
-  Scenario: Successfully ${this.getActionFromMethod(method)} ${this.getResourceFromPath(path)} by ID
-    Given I have a valid ${this.getResourceFromPath(path)} ID
-    When I send a ${method} request to "${path}"
-    Then the response status code should be 200
-    And the response should contain the ${this.getResourceFromPath(path)} details
-`;
-        }
 
         return {
             name: `${featureName}.feature`,
@@ -145,12 +153,23 @@ export class BDDCodeGenerator {
         const responseClass = `${className}Response`;
         const serviceClass = `${className}Service`;
 
+        // Use OCBC enterprise framework by default
+        return this.generateEnterpriseStepDefinitions(endpoint, className, method, resource, requestClass, responseClass, serviceClass);
+    }
+
+    private generateEnterpriseStepDefinitions(endpoint: Endpoint, className: string, method: string, resource: string, requestClass: string, responseClass: string, serviceClass: string) {
+        const resourceMethod = resource.toLowerCase().replace(/\s+/g, '_');
+        const hasHeaders = endpoint.headers && Object.keys(endpoint.headers).length > 0;
+        const headersMap = hasHeaders ? this.generateHeadersMap(endpoint.headers) : 'null';
+        
         const content = `package ${this.config.basePackage}.steps;
 
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
 import io.cucumber.java.en.Then;
-import static org.junit.Assert.*;
+import static org.testng.Assert.*;
+import java.util.HashMap;
+import java.util.Map;
 
 import ${this.config.basePackage}.service.${serviceClass};
 import ${this.config.basePackage}.model.${requestClass};
@@ -176,35 +195,27 @@ public class ${className}Steps {
                 .build();
     }
 
-    ${method === 'GET' && endpoint.path.includes('{') ? `
-    @Given("I have a valid ${resource} ID")
-    public void haveValidId() {
-        // Set up valid ID for testing
-        // This can be customized based on your test data
-    }
-    ` : ''}
-
-    @When("I send a ${method} request to {string}")
-    public void send${method}Request(String endpoint) {
-        response = ${this.camelCase(serviceClass)}.${this.getMethodName(method, resource)}(endpoint, request);
+    @When("I send a ${method} request for ${resourceMethod}")
+    public void send${method}Request() {
+        response = ${this.camelCase(serviceClass)}.${method.toLowerCase()}(request);
     }
 
     @Then("the response status code should be {int}")
     public void validateStatusCode(int expectedStatus) {
-        assertEquals(expectedStatus, ${this.camelCase(serviceClass)}.getLastStatusCode());
+        assertEquals(response.getStatusCode(), expectedStatus);
     }
 
     @Then("the response should contain the correct ${resource} details")
-    public void validate${className}Details() {
+    public void validate${className}Details(${this.generateValidationParameters(endpoint)}) {
         assertNotNull(response);
-        ${this.generateResponseAssertions(endpoint)}
+        ${this.generateValidationAssertions(endpoint)}
     }
 
     ${this.generateValidationSteps(endpoint)}
 
     @Then("the response should contain an error message")
     public void validateError() {
-        assertTrue(${this.camelCase(serviceClass)}.getLastErrorMessage().contains("error"));
+        assertTrue(response.getBody().asString().contains("error"));
     }
 }`;
 
@@ -220,43 +231,97 @@ public class ${className}Steps {
         const requestClass = `${className}Request`;
         const responseClass = `${className}Response`;
 
+        // Use OCBC enterprise framework by default
+        return this.generateEnterpriseServiceClass(endpoint, className, method, resource, requestClass, responseClass);
+    }
+
+    private generateEnterpriseServiceClass(endpoint: Endpoint, className: string, method: string, resource: string, requestClass: string, responseClass: string) {
+        const hasHeaders = endpoint.headers && Object.keys(endpoint.headers).length > 0;
+        const headersMap = hasHeaders ? this.generateHeadersMap(endpoint.headers) : 'null';
+        
         const content = `package ${this.config.basePackage}.service;
 
-import io.restassured.RestAssured;
 import io.restassured.response.Response;
-import io.restassured.http.ContentType;
+import io.restassured.specification.RequestSpecification;
+import io.restassured.http.Headers;
+import io.restassured.http.Header;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ${this.config.basePackage}.model.${requestClass};
 import ${this.config.basePackage}.model.${responseClass};
+import java.net.URL;
+import java.net.MalformedURLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.Map;
 
-public class ${className}Service {
+public class ${className}Service extends BaseRestService {
 
-    private int lastStatusCode;
-    private String lastErrorMessage;
+    private URL hostAddress;
+    private Map<String, String> customHeaders = ${headersMap};
 
-    public ${responseClass} ${this.getMethodName(method, resource)}(String endpoint, ${requestClass} request) {
-        Response response = RestAssured
-                .given()
-                .contentType(ContentType.JSON)
-                ${method !== 'GET' ? '.body(request)' : ''}
-                .when()
-                .${method.toLowerCase()}(endpoint);
-
-        this.lastStatusCode = response.getStatusCode();
-        
-        if (response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
-            return response.as(${responseClass}.class);
-        } else {
-            this.lastErrorMessage = response.getBody().asString();
-            return null;
+    public ${className}Service() {
+        try {
+            String appUrl = appConfig.get("internetbanking", "msBaseUrl");
+            hostAddress = new URL(appUrl);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e.getMessage());
         }
     }
 
-    public int getLastStatusCode() {
-        return lastStatusCode;
+    private List<Header> setupHeaders() {
+        List<Header> headers = new ArrayList<>();
+        
+        // Add default Content-Type if no custom headers provided
+        if (customHeaders == null || customHeaders.isEmpty()) {
+            headers.add(new Header("Content-Type", "application/json"));
+            System.out.println("No custom headers provided, using default Content-Type");
+        } else {
+            // Add all custom headers from frontend
+            System.out.println("Adding custom headers from frontend:");
+            for (Map.Entry<String, String> entry : customHeaders.entrySet()) {
+                Header header = new Header(entry.getKey(), entry.getValue());
+                headers.add(header);
+                System.out.println("  - " + entry.getKey() + ": " + entry.getValue());
+            }
+        }
+        
+        System.out.println("Total headers created: " + headers.size());
+        return headers;
     }
 
-    public String getLastErrorMessage() {
-        return lastErrorMessage;
+    private String generateCorrelationId() {
+        return UUID.randomUUID().toString();
+    }
+
+    public Response ${method.toLowerCase()}(${requestClass} requestBody) {
+        // Create headers list with custom headers from frontend
+        List<Header> headers = setupHeaders();
+        
+        // Build request specification with custom headers
+        RequestSpecification requestSpec = baseRequestSpec()
+                .headers(new Headers(headers));
+        
+        if (requestBody != null) {
+            requestSpec = requestSpec.body(requestBody, ObjectMapperType.GSON);
+        }
+        
+        return requestSpec.when().${method.toLowerCase()}(hostAddress.toString());
+    }
+
+    public Response ${method.toLowerCase()}(${requestClass} requestBody, String endPointURL) {
+        // Create headers list with custom headers from frontend
+        List<Header> headers = setupHeaders();
+        
+        // Build request specification with custom headers
+        RequestSpecification requestSpec = baseRequestSpec()
+                .headers(new Headers(headers));
+        
+        if (requestBody != null) {
+            requestSpec = requestSpec.body(requestBody, ObjectMapperType.GSON);
+        }
+        
+        return requestSpec.when().${method.toLowerCase()}(endPointURL);
     }
 }`;
 
@@ -450,9 +515,213 @@ ${fieldsCode}${gettersSetters}
 
         return Object.entries(responseData).map(([key, value]) => {
             const fieldName = this.camelCase(key);
-            const assertionValue = typeof value === 'string' ? `"${value}"` : value;
-            return `        assertEquals(${assertionValue}, response.get${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}());`;
+            const parameterName = fieldName.toLowerCase();
+            return `        assertEquals(response.get${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}(), ${parameterName});`;
         }).join('\n');
+    }
+
+    private generateResponseParameters(endpoint: Endpoint): string {
+        const responseData = endpoint.actualResponse?.data || endpoint.responseBody;
+        if (!responseData) {
+            return '';
+        }
+
+        return Object.entries(responseData).map(([key, value]) => {
+            const fieldName = this.camelCase(key);
+            const fieldType = this.getJavaType(typeof value);
+            const parameterName = fieldName.toLowerCase();
+            return `${fieldType} ${parameterName}`;
+        }).join(', ');
+    }
+
+    private generateValidationParameters(endpoint: Endpoint): string {
+        const parameters: string[] = [];
+        
+        // Add parameters for validation rules only
+        if (endpoint.validationRules) {
+            endpoint.validationRules.forEach(rule => {
+                if (rule.type === 'value' && rule.field) {
+                    // Handle both simple field names and JSON paths
+                    let fieldName = rule.field;
+                    
+                    // If it's a JSON path, extract the last part
+                    if (fieldName.includes('.')) {
+                        fieldName = fieldName.split('.').pop() || fieldName;
+                    }
+                    
+                    const camelCaseFieldName = this.camelCase(fieldName);
+                    const fieldType = this.getJavaType(typeof rule.expectedValue || 'string');
+                    const parameterName = camelCaseFieldName.toLowerCase();
+                    parameters.push(`${fieldType} ${parameterName}`);
+                }
+            });
+        }
+        
+        return parameters.join(', ');
+    }
+
+    private generateValidationAssertions(endpoint: Endpoint): string {
+        const assertions: string[] = [];
+        
+        // Add assertions for validation rules only
+        if (endpoint.validationRules) {
+            endpoint.validationRules.forEach(rule => {
+                if (rule.type === 'value' && rule.field) {
+                    // Handle both simple field names and JSON paths
+                    let fieldName = rule.field;
+                    
+                    // If it's a JSON path, extract the last part
+                    if (fieldName.includes('.')) {
+                        fieldName = fieldName.split('.').pop() || fieldName;
+                    }
+                    
+                    const camelCaseFieldName = this.camelCase(fieldName);
+                    const parameterName = camelCaseFieldName.toLowerCase();
+                    assertions.push(`        assertEquals(response.get${camelCaseFieldName.charAt(0).toUpperCase() + camelCaseFieldName.slice(1)}(), ${parameterName});`);
+                } else if (rule.type === 'existence' && rule.field) {
+                    // Handle both simple field names and JSON paths
+                    let fieldName = rule.field;
+                    
+                    // If it's a JSON path, extract the last part
+                    if (fieldName.includes('.')) {
+                        fieldName = fieldName.split('.').pop() || fieldName;
+                    }
+                    
+                    const camelCaseFieldName = this.camelCase(fieldName);
+                    const condition = rule.condition || 'is_not_empty';
+                    assertions.push(`        assertThat(response.get${camelCaseFieldName.charAt(0).toUpperCase() + camelCaseFieldName.slice(1)}(), ${this.getExistenceAssertionMethod(condition)}());`);
+                }
+            });
+        }
+        
+        return assertions.join('\n');
+    }
+
+    private generateResponseExampleHeaders(responseData: any): string {
+        return Object.keys(responseData).map(key => {
+            const fieldName = this.camelCase(key);
+            return fieldName.toLowerCase();
+        }).join(' | ');
+    }
+
+    private generateResponseExampleValues(responseData: any): string {
+        return Object.entries(responseData).map(([key, value]) => {
+            // Use actual values from response data
+            if (typeof value === 'string') {
+                return `"${value}"`;
+            } else if (typeof value === 'number') {
+                return value.toString();
+            } else if (typeof value === 'boolean') {
+                return value.toString();
+            } else {
+                return '""'; // Default for other types
+            }
+        }).join(' | ');
+    }
+
+    private generateExampleData(endpoint: Endpoint, responseData: any): any {
+        const exampleData: any = {};
+        
+        // Add expected status code
+        exampleData.expected_status = this.getExpectedStatus(endpoint.method);
+        
+        // Add validation rule values only
+        if (endpoint.validationRules) {
+            endpoint.validationRules.forEach(rule => {
+                if (rule.type === 'status') {
+                    exampleData.expected_status = rule.expectedValue || this.getExpectedStatus(endpoint.method);
+                } else if (rule.type === 'value' && rule.field) {
+                    // Handle both simple field names and JSON paths
+                    let fieldName = rule.field.toLowerCase();
+                    
+                    // If it's a JSON path, extract the last part
+                    if (fieldName.includes('.')) {
+                        fieldName = fieldName.split('.').pop() || fieldName;
+                    }
+                    
+                    // Use expectedValue if provided, otherwise use a placeholder
+                    exampleData[fieldName] = rule.expectedValue || '""';
+                } else if (rule.type === 'existence' && rule.field) {
+                    // Handle both simple field names and JSON paths
+                    let fieldName = rule.field.toLowerCase();
+                    
+                    // If it's a JSON path, extract the last part
+                    if (fieldName.includes('.')) {
+                        fieldName = fieldName.split('.').pop() || fieldName;
+                    }
+                    
+                    // For existence rules, we don't need example values, but we need the field in headers
+                    exampleData[fieldName] = '""';
+                }
+            });
+        }
+        
+        return exampleData;
+    }
+
+    private generateExampleHeaders(exampleData: any): string {
+        return Object.keys(exampleData).join(' | ');
+    }
+
+    private generateExampleValues(exampleData: any): string {
+        return Object.entries(exampleData).map(([key, value]) => {
+            if (typeof value === 'string') {
+                return `"${value}"`;
+            } else if (typeof value === 'number') {
+                return value.toString();
+            } else if (typeof value === 'boolean') {
+                return value.toString();
+            } else {
+                return '""';
+            }
+        }).join(' | ');
+    }
+
+    private generateFeatureValidationSteps(endpoint: Endpoint): string {
+        const steps: string[] = [];
+        
+        // Always add status code step
+        steps.push('    Then the response status code should be <expected_status>');
+        
+        // Add steps for each validation rule only
+        if (endpoint.validationRules) {
+            console.log('Processing validation rules:', endpoint.validationRules);
+            endpoint.validationRules.forEach(rule => {
+                console.log('Processing rule:', rule);
+                if (rule.type === 'status') {
+                    // Status code is already handled above
+                    console.log('Skipping status rule as it\'s handled above');
+                    return;
+                } else if (rule.type === 'value' && rule.field) {
+                    // Handle both simple field names and JSON paths
+                    let fieldName = rule.field.toLowerCase();
+                    
+                    // If it's a JSON path, extract the last part
+                    if (fieldName.includes('.')) {
+                        fieldName = fieldName.split('.').pop() || fieldName;
+                    }
+                    
+                    console.log('Adding value rule step for field:', fieldName);
+                    steps.push(`    Then the response ${fieldName} should be <${fieldName}>`);
+                } else if (rule.type === 'existence' && rule.field) {
+                    let fieldName = rule.field.toLowerCase();
+                    
+                    // If it's a JSON path, extract the last part
+                    if (fieldName.includes('.')) {
+                        fieldName = fieldName.split('.').pop() || fieldName;
+                    }
+                    
+                    const condition = rule.condition || 'is_not_empty';
+                    console.log('Adding existence rule step for field:', fieldName, 'condition:', condition);
+                    steps.push(`    Then the response ${fieldName} should ${condition}`);
+                } else {
+                    console.log('Rule not processed:', rule);
+                }
+            });
+        }
+        
+        console.log('Generated steps:', steps);
+        return steps.join('\n');
     }
 
     private generateValidationSteps(endpoint: Endpoint): string {
@@ -489,7 +758,7 @@ ${fieldsCode}${gettersSetters}
     private generateValidationAssertion(rule: any): string {
         switch (rule.type) {
             case 'status':
-                return `assertEquals(${rule.expectedValue || '200'}, response.getStatusCode());`;
+                return `assertEquals(response.getStatusCode(), ${rule.expectedValue || '200'});`;
             case 'value':
                 const condition = rule.condition || 'equals';
                 const fieldPath = rule.field?.split('.').join('().') || 'data';
@@ -603,5 +872,24 @@ ${fieldsCode}${gettersSetters}
 
     private camelCase(str: string): string {
         return str.charAt(0).toLowerCase() + str.slice(1);
+    }
+
+    private generateHeadersMap(headers: Record<string, string>): string {
+        console.log('Headers received in BDD generator:', headers);
+        
+        if (!headers || Object.keys(headers).length === 0) {
+            console.log('No headers found, returning null');
+            return 'null';
+        }
+
+        const headerEntries = Object.entries(headers)
+            .map(([key, value]) => `put("${key}", "${value}")`)
+            .join('\n                .');
+
+        console.log('Generated header map:', headerEntries);
+        
+        return `new HashMap<String, String>() {{
+                .${headerEntries};
+            }}`;
     }
 } 

@@ -22,7 +22,7 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
   const [generatedCode, setGeneratedCode] = useState<GeneratedCode | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [config, setConfig] = useState({
-    framework: 'cucumber',
+    framework: 'cucumber' as const,
     language: 'java',
     basePackage: 'com.example.api',
     useLombok: true,
@@ -163,7 +163,6 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cucumber">Cucumber</SelectItem>
-                  <SelectItem value="karate">Karate</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -202,6 +201,8 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
                 <Label htmlFor="useLombok" className="text-sm">Generate Lombok annotations</Label>
               </div>
             </div>
+
+
           </div>
 
           <div className="space-y-2">
@@ -295,55 +296,79 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
               </TabsList>
 
               <TabsContent value="features" className="mt-4">
-                <ScrollArea className="h-64 w-full rounded-md border p-4">
-                  {generatedCode.featureFiles.map((file, index) => (
-                    <div key={index} className="mb-4">
-                      <Badge variant="outline" className="mb-2">{file.name}</Badge>
-                      <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                        <code>{file.content}</code>
-                      </pre>
+                <div className="border rounded-md overflow-hidden">
+                  <ScrollArea className="h-80 w-full">
+                    <div className="p-4 space-y-4">
+                      {generatedCode.featureFiles.map((file, index) => (
+                        <div key={index} className="space-y-2">
+                          <Badge variant="outline" className="text-xs">{file.name}</Badge>
+                          <div className="bg-muted rounded-md overflow-hidden">
+                            <pre className="text-xs p-4 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words max-w-full font-mono">
+                              <code className="block">{file.content}</code>
+                            </pre>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </ScrollArea>
+                  </ScrollArea>
+                </div>
               </TabsContent>
 
               <TabsContent value="steps" className="mt-4">
-                <ScrollArea className="h-64 w-full rounded-md border p-4">
-                  {generatedCode.stepDefinitions.map((file, index) => (
-                    <div key={index} className="mb-4">
-                      <Badge variant="outline" className="mb-2">{file.name}</Badge>
-                      <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                        <code>{file.content}</code>
-                      </pre>
+                <div className="border rounded-md overflow-hidden">
+                  <ScrollArea className="h-80 w-full">
+                    <div className="p-4 space-y-4">
+                      {generatedCode.stepDefinitions.map((file, index) => (
+                        <div key={index} className="space-y-2">
+                          <Badge variant="outline" className="text-xs">{file.name}</Badge>
+                          <div className="bg-muted rounded-md overflow-hidden">
+                            <pre className="text-xs p-4 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words max-w-full font-mono">
+                              <code className="block">{file.content}</code>
+                            </pre>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </ScrollArea>
+                  </ScrollArea>
+                </div>
               </TabsContent>
 
               <TabsContent value="services" className="mt-4">
-                <ScrollArea className="h-64 w-full rounded-md border p-4">
-                  {generatedCode.serviceClasses.map((file, index) => (
-                    <div key={index} className="mb-4">
-                      <Badge variant="outline" className="mb-2">{file.name}</Badge>
-                      <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                        <code>{file.content}</code>
-                      </pre>
+                <div className="border rounded-md overflow-hidden">
+                  <ScrollArea className="h-80 w-full">
+                    <div className="p-4 space-y-4">
+                      {generatedCode.serviceClasses.map((file, index) => (
+                        <div key={index} className="space-y-2">
+                          <Badge variant="outline" className="text-xs">{file.name}</Badge>
+                          <div className="bg-muted rounded-md overflow-hidden">
+                            <pre className="text-xs p-4 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words max-w-full font-mono">
+                              <code className="block">{file.content}</code>
+                            </pre>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </ScrollArea>
+                  </ScrollArea>
+                </div>
               </TabsContent>
 
               <TabsContent value="pojos" className="mt-4">
-                <ScrollArea className="h-64 w-full rounded-md border p-4">
-                  {generatedCode.pojos.map((file, index) => (
-                    <div key={index} className="mb-4">
-                      <Badge variant="outline" className="mb-2">{file.name}</Badge>
-                      <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                        <code>{file.content}</code>
-                      </pre>
+                <div className="border rounded-md overflow-hidden">
+                  <ScrollArea className="h-80 w-full">
+                    <div className="p-4 space-y-4">
+                      {generatedCode.pojos.map((file, index) => (
+                        <div key={index} className="space-y-2">
+                          <Badge variant="outline" className="text-xs">{file.name}</Badge>
+                          <div className="bg-muted rounded-md overflow-hidden">
+                            <pre className="text-xs p-4 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words max-w-full font-mono">
+                              <code className="block">{file.content}</code>
+                            </pre>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </ScrollArea>
+                  </ScrollArea>
+                </div>
               </TabsContent>
             </Tabs>
           </div>

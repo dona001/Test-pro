@@ -217,7 +217,7 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                   Copy JSON
                 </Button>
               </div>
-              {/* Enhanced response body display for large content */}
+              {/* Enhanced response body display for large content with improved scroll handling */}
               <div className="flex-1 border rounded-lg bg-gray-50/50 overflow-hidden">
                 <ScrollArea className="h-[400px] p-4">
                   {response.status === 0 && response.data?.error ? (
@@ -226,12 +226,12 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                     />
                   ) : response.success !== undefined ? (
                     // Wrapper response structure
-                    <pre className="text-sm font-mono bg-white p-4 rounded border overflow-auto whitespace-pre-wrap break-words">
+                    <pre className="text-sm font-mono bg-white p-4 rounded border overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words max-w-full">
                       {formatJson(response.data)}
                     </pre>
                   ) : (
                     // Direct API response structure
-                    <pre className="text-sm font-mono bg-white p-4 rounded border overflow-auto whitespace-pre-wrap break-words">
+                    <pre className="text-sm font-mono bg-white p-4 rounded border overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words max-w-full">
                       {formatJson(response.data)}
                     </pre>
                   )}
@@ -252,17 +252,17 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                   Copy Headers
                 </Button>
               </div>
-              {/* Fixed height scrollable container for headers */}
+              {/* Fixed height scrollable container for headers with improved scroll handling */}
               <div className="flex-1 border rounded-lg bg-gray-50/50 overflow-hidden">
                 <ScrollArea className="h-[400px] p-4">
                   {response.headers && typeof response.headers === 'object' && Object.entries(response.headers).length > 0 ? (
                     <div className="space-y-3">
                       {Object.entries(response.headers).map(([key, value]) => (
                         <div key={key} className="flex flex-col space-y-1 p-3 bg-white rounded border-l-4 border-l-blue-200">
-                          <code className="font-mono text-sm font-semibold text-blue-700">
+                          <code className="font-mono text-sm font-semibold text-blue-700 break-all">
                             {key}
                           </code>
-                          <code className="font-mono text-sm text-gray-600 break-all whitespace-pre-wrap">
+                          <code className="font-mono text-sm text-gray-600 break-all whitespace-pre-wrap overflow-x-auto">
                             {value}
                           </code>
                         </div>
@@ -362,6 +362,7 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                 description: `${requestConfig.method.toUpperCase()} ${requestConfig.url}`,
                 requestBody: requestConfig.body ? JSON.parse(requestConfig.body) : undefined,
                 responseBody: response?.data,
+                headers: requestConfig.headers || {},
               }]}
             />
           </CollapsibleContent>

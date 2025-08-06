@@ -91,4 +91,29 @@
       transform: translateY(0);
     }
   }
+
+  /* Enhanced scroll handling for long content */
+  .scrollable-content {
+    overflow-x: auto;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-width: 100%;
+  }
+
+  .scrollable-code {
+    overflow-x: auto;
+    overflow-y: auto;
+    white-space: pre;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    max-width: 100%;
+  }
+
+  .scrollable-json {
+    overflow-x: auto;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-width: 100%;
+  }
 }

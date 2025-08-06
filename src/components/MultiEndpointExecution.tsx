@@ -49,6 +49,7 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
   const [customizedEndpoints, setCustomizedEndpoints] = useState<Record<string, Endpoint>>({});
   const [endpointValidations, setEndpointValidations] = useState<Record<string, ValidationRule[]>>({});
   const [isExecuting, setIsExecuting] = useState(false);
+  const [executionProgress, setExecutionProgress] = useState({ current: 0, total: 0 });
   const [executionResults, setExecutionResults] = useState<ExecutionResult[]>([]);
   const [configModalEndpoint, setConfigModalEndpoint] = useState<Endpoint | null>(null);
   const [validationModalEndpoint, setValidationModalEndpoint] = useState<Endpoint | null>(null);
@@ -218,11 +219,14 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
     setIsExecuting(true);
     setExecutionResults([]);
     setEndpointResponses({});
+    setExecutionProgress({ current: 0, total: selectedEndpoints.length });
     
     const results: ExecutionResult[] = [];
     const responses: Record<string, any> = {};
 
-    for (const endpointId of selectedEndpoints) {
+    for (let i = 0; i < selectedEndpoints.length; i++) {
+      const endpointId = selectedEndpoints[i];
+      setExecutionProgress({ current: i + 1, total: selectedEndpoints.length });
       const endpoint = getEffectiveEndpoint(endpointId);
       const validationRules = endpointValidations[endpointId] || [];
       
@@ -616,8 +620,8 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                 </div>
               )}
 
-              {/* Endpoint List */}
-              <div className="border rounded-lg">
+              {/* Endpoint List with improved scroll handling */}
+              <div className="border rounded-lg overflow-hidden">
                 <ScrollArea className="h-[400px]">
                   <div className="p-4 space-y-3">
                     {endpoints.map((endpoint) => {
@@ -957,7 +961,7 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                 <div className="flex items-center justify-center py-4">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                   <span className="ml-2 text-sm text-gray-600">
-                    Executing endpoints... ({executionResults.length + 1}/{selectedEndpoints.length})
+                    Executing endpoints... ({executionProgress.current}/{executionProgress.total})
                   </span>
                 </div>
               )}

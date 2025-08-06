@@ -232,7 +232,7 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
         {/* Quick Results Overview */}
         <div className="space-y-3">
           <h4 className="font-semibold text-gray-900 dark:text-white">Quick Overview</h4>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
+          <div className="space-y-2 max-h-40 overflow-y-auto overflow-x-auto">
             {results.map((result, index) => (
               <div key={result.endpoint.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                 <div className="flex items-center space-x-3">

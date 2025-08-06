@@ -434,7 +434,21 @@ export const ResponseValidation: React.FC<ResponseValidationProps> = ({ response
         {/* Display rules */}
         {rules.length > 0 && (
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Active Validation Rules:</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Active Validation Rules:</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRules([]);
+                  onRulesChange?.([]);
+                }}
+                className="text-red-600 hover:text-red-700"
+              >
+                <X className="w-3 h-3 mr-1" />
+                Reset All
+              </Button>
+            </div>
             {rules.map((rule) => (
               <div key={rule.id} className="flex items-center justify-between p-3 border rounded-md bg-white">
                 <div className="flex items-center space-x-3">
