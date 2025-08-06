@@ -42,7 +42,7 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
     folderPath: 'src/test/java',
     username: '',
     password: '',
-    codeFormat: 'karate' as 'karate' | 'cucumber'
+    codeFormat: (isFeatureEnabled('standardCodeGeneration') ? 'cucumber' : (isFeatureEnabled('karateFramework') ? 'karate' : 'cucumber')) as 'karate' | 'cucumber'
   });
 
   const handlePushToBitbucket = async () => {
@@ -249,14 +249,26 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="karate">Karate DSL</SelectItem>
-                  <SelectItem value="cucumber">Cucumber + RestAssured</SelectItem>
+                  {isFeatureEnabled('standardCodeGeneration') && (
+                    <SelectItem value="cucumber">Standard Code (Cucumber + RestAssured)</SelectItem>
+                  )}
+                  {isFeatureEnabled('karateFramework') && (
+                    <SelectItem value="karate">Karate DSL</SelectItem>
+                  )}
+                  {isFeatureEnabled('bddCodeGeneration') && (
+                    <SelectItem value="bdd">BDD Framework</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="text-sm text-muted-foreground">
               Will generate {bitbucketConfig.codeFormat === 'karate' ? 'Karate feature files' : 'Cucumber features and Java step definitions'} for {endpoints.length} endpoint{endpoints.length !== 1 ? 's' : ''}
+              {isFeatureEnabled('standardCodeGeneration') && isFeatureEnabled('karateFramework') && isFeatureEnabled('bddCodeGeneration') && (
+                <span className="block mt-1 text-xs text-blue-600">
+                  All 3 code generation options available
+                </span>
+              )}
             </div>
 
             <Button 

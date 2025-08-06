@@ -7,9 +7,10 @@ interface TestGenerationConfig {
   headers: Record<string, string>;
   body?: string;
   validationRules: Array<{
-    type: 'status' | 'header' | 'body' | 'responseTime' | 'value' | 'exists';
+    type: 'status' | 'value' | 'existence';
     field?: string;
     expectedValue?: string;
+    condition?: 'equals' | 'not_equals' | 'contains' | 'starts_with' | 'ends_with' | 'is_empty' | 'is_not_empty' | 'is_null' | 'is_not_null';
   }>;
 }
 
@@ -47,18 +48,13 @@ Scenario: ${scenarioName}
       case 'status':
         feature += `\n  And the response status should be ${rule.expectedValue || '200'}`;
         break;
-      case 'body':
       case 'value':
-        feature += `\n  And the response field "${rule.field}" should equal "${rule.expectedValue}"`;
+        const condition = rule.condition || 'equals';
+        feature += `\n  And the response field "${rule.field}" should ${condition} "${rule.expectedValue}"`;
         break;
-      case 'header':
-        feature += `\n  And the response header "${rule.field}" should equal "${rule.expectedValue}"`;
-        break;
-      case 'responseTime':
-        feature += `\n  And the response time should be under ${rule.expectedValue}ms`;
-        break;
-      case 'exists':
-        feature += `\n  And the response should contain field "${rule.field}"`;
+      case 'existence':
+        const existenceCondition = rule.condition || 'is_not_empty';
+        feature += `\n  And the response field "${rule.field}" should ${existenceCondition}`;
         break;
     }
   });

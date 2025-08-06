@@ -24,6 +24,7 @@ interface ApiResponse {
   headers: Record<string, string>;
   data: any;
   responseTime: number;
+  success?: boolean; // For wrapper responses
 }
 
 interface ResponsePanelProps {
@@ -65,10 +66,18 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
   };
 
   const validateResponseData = (response: any): boolean => {
-    return response && 
-           typeof response === 'object' && 
-           response.data !== undefined && 
-           response.status !== undefined;
+    // Handle wrapper response structure
+    if (response && typeof response === 'object') {
+      // If it's a wrapper response (has success, status, data properties)
+      if (response.success !== undefined && response.data !== undefined) {
+        return true;
+      }
+      // If it's a direct API response (has status, data properties)
+      if (response.status !== undefined && response.data !== undefined) {
+        return true;
+      }
+    }
+    return false;
   };
 
   const copyToClipboard = async (text: string, type: string) => {
@@ -200,11 +209,13 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                     <CORSErrorDisplay 
                       url={requestConfig?.url || 'Unknown URL'} 
                     />
-                  ) : response.data?.success ? (
+                  ) : response.success !== undefined ? (
+                    // Wrapper response structure
                     <pre className="text-sm font-mono bg-white p-4 rounded border overflow-auto">
-                      {formatJson(response.data.data)}
+                      {formatJson(response.data)}
                     </pre>
                   ) : (
+                    // Direct API response structure
                     <pre className="text-sm font-mono bg-white p-4 rounded border overflow-auto">
                       {formatJson(response.data)}
                     </pre>
@@ -279,13 +290,17 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4">
-            <ResponseValidation response={response} onRulesChange={onValidationRulesChange} />
+            <ResponseValidation 
+              response={response} 
+              validationRules={validationRules}
+              onRulesChange={onValidationRulesChange} 
+            />
           </CollapsibleContent>
         </Collapsible>
       )}
 
       {/* Code Generation Panel - Collapsible by default, positioned at the bottom */}
-      {showCodeGen && isFeatureEnabled('testCodeGeneration') && validationRules && validationRules.length > 0 && (
+      {showCodeGen && isFeatureEnabled('standardCodeGeneration') && validationRules && validationRules.length > 0 && (
         <Collapsible defaultOpen={false} className="p-6">
           <CollapsibleTrigger asChild>
             <Button variant="outline" className="w-full flex items-center justify-between gap-2">

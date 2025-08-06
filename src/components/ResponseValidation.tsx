@@ -18,19 +18,25 @@ interface ApiResponse {
 
 interface ResponseValidationProps {
   response: ApiResponse | null;
+  validationRules?: ValidationRule[];
   onRulesChange?: (rules: ValidationRule[]) => void;
 }
 
 type ValidationType = 'status' | 'value' | 'existence';
 type ConditionType = 'equals' | 'not_equals' | 'contains' | 'starts_with' | 'ends_with' | 'is_empty' | 'is_not_empty' | 'is_null' | 'is_not_null';
 
-export const ResponseValidation: React.FC<ResponseValidationProps> = ({ response, onRulesChange }) => {
-  const [rules, setRules] = useState<ValidationRule[]>([]);
+export const ResponseValidation: React.FC<ResponseValidationProps> = ({ response, validationRules = [], onRulesChange }) => {
+  const [rules, setRules] = useState<ValidationRule[]>(validationRules);
   const [selectedType, setSelectedType] = useState<ValidationType | ''>('');
   const [selectedField, setSelectedField] = useState('');
   const [selectedCondition, setSelectedCondition] = useState<ConditionType>('equals');
   const [expectedValue, setExpectedValue] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Sync external validation rules with internal state
+  useEffect(() => {
+    setRules(validationRules);
+  }, [validationRules]);
 
   // Extract all available fields from response data
   const availableFields = useMemo(() => {

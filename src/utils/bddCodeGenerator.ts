@@ -35,9 +35,10 @@ export interface Endpoint {
     responseTime: number;
   };
   validationRules?: Array<{
-    type: string;
+    type: 'status' | 'value' | 'existence';
     field?: string;
-    expectedValue: string;
+    expectedValue?: string;
+    condition?: 'equals' | 'not_equals' | 'contains' | 'starts_with' | 'ends_with' | 'is_empty' | 'is_not_empty' | 'is_null' | 'is_not_null';
   }>;
 }
 
@@ -468,13 +469,13 @@ ${fieldsCode}${gettersSetters}
   private generateValidationStepName(rule: any): string {
     switch (rule.type) {
       case 'status':
-        return `the response status should be ${rule.expectedValue}`;
-      case 'header':
-        return `the response should have header "${rule.field}" with value "${rule.expectedValue}"`;
-      case 'body':
-        return `the response body should contain "${rule.expectedValue}"`;
-      case 'responseTime':
-        return `the response time should be less than ${rule.expectedValue}ms`;
+        return `the response status should be ${rule.expectedValue || '200'}`;
+      case 'value':
+        const condition = rule.condition || 'equals';
+        return `the response field "${rule.field}" should ${condition} "${rule.expectedValue}"`;
+      case 'existence':
+        const existenceCondition = rule.condition || 'is_not_empty';
+        return `the response field "${rule.field}" should ${existenceCondition}`;
       default:
         return `the response should match validation rule "${rule.type}"`;
     }
@@ -483,15 +484,38 @@ ${fieldsCode}${gettersSetters}
   private generateValidationAssertion(rule: any): string {
     switch (rule.type) {
       case 'status':
-        return `assertEquals(${rule.expectedValue}, ${this.camelCase(rule.field || 'statusCode')});`;
-      case 'header':
-        return `assertTrue(responseHeaders.containsKey("${rule.field}"));`;
-      case 'body':
-        return `assertTrue(responseBody.contains("${rule.expectedValue}"));`;
-      case 'responseTime':
-        return `assertTrue(responseTime < ${rule.expectedValue});`;
+        return `assertEquals(${rule.expectedValue || '200'}, response.getStatusCode());`;
+      case 'value':
+        const condition = rule.condition || 'equals';
+        const fieldPath = rule.field?.split('.').join('().') || 'data';
+        return `assertThat(response.jsonPath().get("${fieldPath}"), ${this.getAssertionMethod(condition)}("${rule.expectedValue}"));`;
+      case 'existence':
+        const existenceCondition = rule.condition || 'is_not_empty';
+        const fieldPath2 = rule.field?.split('.').join('().') || 'data';
+        return `assertThat(response.jsonPath().get("${fieldPath2}"), ${this.getExistenceAssertionMethod(existenceCondition)}());`;
       default:
         return `// Custom validation for ${rule.type}`;
+    }
+  }
+
+  private getAssertionMethod(condition: string): string {
+    switch (condition) {
+      case 'equals': return 'is';
+      case 'not_equals': return 'isNot';
+      case 'contains': return 'containsString';
+      case 'starts_with': return 'startsWith';
+      case 'ends_with': return 'endsWith';
+      default: return 'is';
+    }
+  }
+
+  private getExistenceAssertionMethod(condition: string): string {
+    switch (condition) {
+      case 'is_empty': return 'isEmpty';
+      case 'is_not_empty': return 'isNotEmpty';
+      case 'is_null': return 'isNull';
+      case 'is_not_null': return 'isNotNull';
+      default: return 'isNotEmpty';
     }
   }
 

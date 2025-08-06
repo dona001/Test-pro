@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,9 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, X, Shield, CheckCircle, AlertCircle } from 'lucide-react';
+import { Plus, X, Shield, CheckCircle, AlertCircle, Search } from 'lucide-react';
 
 import { ValidationRule, Endpoint } from '@/types/validation';
+
+type ValidationType = 'status' | 'value' | 'existence';
+type ConditionType = 'equals' | 'not_equals' | 'contains' | 'starts_with' | 'ends_with' | 'is_empty' | 'is_not_empty' | 'is_null' | 'is_not_null';
 
 interface EndpointValidationModalProps {
   endpoint: Endpoint;
@@ -26,28 +29,48 @@ export const EndpointValidationModal: React.FC<EndpointValidationModalProps> = (
   onSave
 }) => {
   const [rules, setRules] = useState<ValidationRule[]>(existingRules);
-  const [newRuleType, setNewRuleType] = useState<string>('');
-  const [newRuleField, setNewRuleField] = useState('');
-  const [newRuleValue, setNewRuleValue] = useState('');
+  const [selectedType, setSelectedType] = useState<ValidationType | ''>('');
+  const [selectedField, setSelectedField] = useState('');
+  const [selectedCondition, setSelectedCondition] = useState<ConditionType>('equals');
+  const [expectedValue, setExpectedValue] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Extract all available fields from response data (placeholder for now)
+  const availableFields = useMemo(() => {
+    // For now, return common fields. In a real implementation, 
+    // this would extract fields from a sample response
+    return [
+      'status',
+      'data',
+      'data.success',
+      'data.result',
+      'data.result.status',
+      'data.result.tokenOperateReqId',
+      'data.result.endToEndId',
+      'data.result.unsignedTransaction'
+    ];
+  }, []);
 
   useEffect(() => {
     setRules(existingRules);
   }, [existingRules]);
 
   const addRule = () => {
-    if (!newRuleType || !newRuleField) return;
+    if (!selectedType) return;
 
     const rule: ValidationRule = {
       id: Math.random().toString(36).substr(2, 9),
-      type: newRuleType as 'status' | 'value' | 'exists',
-      field: newRuleField,
-      expectedValue: newRuleType === 'exists' ? undefined : newRuleValue,
+      type: selectedType,
+      field: selectedType === 'status' ? 'status' : selectedField,
+      expectedValue: selectedType === 'existence' ? undefined : expectedValue,
+      condition: selectedType === 'existence' ? selectedCondition : selectedCondition,
     };
 
     setRules([...rules, rule]);
-    setNewRuleType('');
-    setNewRuleField('');
-    setNewRuleValue('');
+    setSelectedType('');
+    setSelectedField('');
+    setSelectedCondition('equals');
+    setExpectedValue('');
   };
 
   const removeRule = (id: string) => {
@@ -62,11 +85,11 @@ export const EndpointValidationModal: React.FC<EndpointValidationModalProps> = (
   const getRuleDisplayText = (rule: ValidationRule) => {
     switch (rule.type) {
       case 'status':
-        return `status == ${rule.expectedValue || '200'}`;
+        return `Status Code: ${rule.expectedValue || '200'}`;
       case 'value':
-        return `${rule.field} == ${rule.expectedValue}`;
-      case 'exists':
-        return `${rule.field} exists`;
+        return `${rule.field} ${rule.condition || 'equals'} ${rule.expectedValue}`;
+      case 'existence':
+        return `${rule.field} ${rule.condition || 'is_not_empty'}`;
       default:
         return 'Unknown rule';
     }
@@ -122,50 +145,106 @@ export const EndpointValidationModal: React.FC<EndpointValidationModalProps> = (
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 p-3 bg-gray-50 rounded-md">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                  <Select value={newRuleType} onValueChange={setNewRuleType}>
+              <div className="space-y-4">
+                {/* Validation Type Selection */}
+                <div className="space-y-2">
+                  <Label>Validation Type</Label>
+                  <Select value={selectedType} onValueChange={(value: ValidationType) => setSelectedType(value)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Validation type" />
+                      <SelectValue placeholder="Select validation type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="status">Status Code</SelectItem>
-                      <SelectItem value="value">JSON Value</SelectItem>
-                      <SelectItem value="exists">Key Exists</SelectItem>
+                      <SelectItem value="value">JSON Value Match</SelectItem>
+                      <SelectItem value="existence">Key Existence / Value Presence</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
 
-                  <Input
-                    placeholder={newRuleType === 'status' ? 'status' : 'field.path'}
-                    value={newRuleField}
-                    onChange={(e) => setNewRuleField(e.target.value)}
-                    className="font-mono text-sm"
-                  />
+                {/* Field Selection - only show for value and existence types */}
+                {(selectedType === 'value' || selectedType === 'existence') && (
+                  <div className="space-y-2">
+                    <Label>JSON Field</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        placeholder="Search fields..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    <Select value={selectedField} onValueChange={setSelectedField}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select field" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {searchTerm ? (
+                          // Show filtered fields
+                          availableFields.filter(field => 
+                            field.toLowerCase().includes(searchTerm.toLowerCase())
+                          ).map(field => (
+                            <SelectItem key={field} value={field}>
+                              {field}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          // Show all available fields
+                          availableFields.map(field => (
+                            <SelectItem key={field} value={field}>
+                              {field}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
-                  {newRuleType !== 'exists' && (
+                {/* Condition Selection - only show for existence type */}
+                {selectedType === 'existence' && selectedField && (
+                  <div className="space-y-2">
+                    <Label>Condition</Label>
+                    <Select value={selectedCondition} onValueChange={(value: ConditionType) => setSelectedCondition(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="is_empty">Is Empty</SelectItem>
+                        <SelectItem value="is_not_empty">Is Not Empty</SelectItem>
+                        <SelectItem value="is_null">Is Null</SelectItem>
+                        <SelectItem value="is_not_null">Is Not Null</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Expected Value - only show for status and value types */}
+                {(selectedType === 'status' || selectedType === 'value') && (
+                  <div className="space-y-2">
+                    <Label>Expected Value</Label>
                     <Input
-                      placeholder="expected value"
-                      value={newRuleValue}
-                      onChange={(e) => setNewRuleValue(e.target.value)}
-                      className="font-mono text-sm"
+                      placeholder={selectedType === 'status' ? '200' : 'Expected value'}
+                      value={expectedValue}
+                      onChange={(e) => setExpectedValue(e.target.value)}
                     />
-                  )}
+                  </div>
+                )}
 
-                  <Button 
-                    onClick={addRule} 
-                    disabled={!newRuleType || !newRuleField}
-                    className="flex items-center"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add
-                  </Button>
-                </div>
-                
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p><strong>Status Code:</strong> Validates HTTP response status (e.g., 200, 404)</p>
-                  <p><strong>JSON Value:</strong> Checks if a field equals expected value (e.g., data.success == true)</p>
-                  <p><strong>Key Exists:</strong> Verifies if a field exists in response (e.g., user.id exists)</p>
-                </div>
+                {/* Add Rule Button */}
+                <Button 
+                  onClick={addRule} 
+                  disabled={
+                    !selectedType || 
+                    (selectedType === 'status' && !expectedValue) ||
+                    (selectedType === 'value' && (!selectedField || !expectedValue)) ||
+                    (selectedType === 'existence' && !selectedField)
+                  }
+                  className="w-full"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Validation Rule
+                </Button>
               </div>
             </CardContent>
           </Card>

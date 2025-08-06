@@ -15,11 +15,12 @@ export const config = {
     smartImport: true,
     multiEndpointTesting: true,
     testCodeGeneration: true,
+    standardCodeGeneration: false, // Standard test code generation (separate from BDD)
     reporting: true,
     useAllureReports: false, // Toggle between Extent (false) and Allure (true)
     valueSelector: false, // Enable/disable dynamic value selection dropdown
     bddCodeGeneration: true, // BDD framework code generation
-    karateFramework: true // Karate framework support
+    karateFramework: false // Karate framework support
   },
 
   // External service configurations (optional)

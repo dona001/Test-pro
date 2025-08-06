@@ -126,34 +126,68 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
             : `Status ${response.status} does not match expected ${expectedStatus}`;
           break;
 
-        case 'body':
+        case 'value':
           const actualValue = getNestedValue(response.data, rule.field || '');
           const expectedValue = rule.expectedValue;
+          const condition = rule.condition || 'equals';
+          
           let convertedExpected: any = expectedValue;
           if (expectedValue === 'true') convertedExpected = true;
           if (expectedValue === 'false') convertedExpected = false;
           
-          result = actualValue == convertedExpected ? 'pass' : 'fail';
-          message = result === 'pass'
-            ? `${rule.field} equals ${expectedValue}`
-            : `${rule.field} is ${JSON.stringify(actualValue)}, expected ${expectedValue}`;
+          let passed = false;
+          switch (condition) {
+            case 'equals':
+              passed = actualValue == convertedExpected;
+              break;
+            case 'not_equals':
+              passed = actualValue != convertedExpected;
+              break;
+            case 'contains':
+              passed = String(actualValue).includes(String(expectedValue));
+              break;
+            case 'starts_with':
+              passed = String(actualValue).startsWith(String(expectedValue));
+              break;
+            case 'ends_with':
+              passed = String(actualValue).endsWith(String(expectedValue));
+              break;
+            default:
+              passed = actualValue == convertedExpected;
+          }
+          
+          result = passed ? 'pass' : 'fail';
+          message = passed
+            ? `${rule.field} ${condition} ${expectedValue}`
+            : `${rule.field} is ${JSON.stringify(actualValue)}, expected ${condition} ${expectedValue}`;
           break;
 
-        case 'header':
-          const headerValue = response.headers?.[rule.field || ''];
-          result = headerValue === rule.expectedValue ? 'pass' : 'fail';
-          message = result === 'pass'
-            ? `Header ${rule.field} equals ${rule.expectedValue}`
-            : `Header ${rule.field} is ${headerValue}, expected ${rule.expectedValue}`;
-          break;
-
-        case 'responseTime':
-          const responseTime = response.responseTime || 0;
-          const maxTime = parseInt(rule.expectedValue);
-          result = responseTime <= maxTime ? 'pass' : 'fail';
-          message = result === 'pass'
-            ? `Response time ${responseTime}ms is within ${maxTime}ms limit`
-            : `Response time ${responseTime}ms exceeds ${maxTime}ms limit`;
+        case 'existence':
+          const value = getNestedValue(response.data, rule.field || '');
+          const existenceCondition = rule.condition || 'is_not_empty';
+          
+          let exists = false;
+          switch (existenceCondition) {
+            case 'is_empty':
+              exists = value === '' || value === null || value === undefined;
+              break;
+            case 'is_not_empty':
+              exists = value !== '' && value !== null && value !== undefined;
+              break;
+            case 'is_null':
+              exists = value === null || value === undefined;
+              break;
+            case 'is_not_null':
+              exists = value !== null && value !== undefined;
+              break;
+            default:
+              exists = value !== '' && value !== null && value !== undefined;
+          }
+          
+          result = exists ? 'pass' : 'fail';
+          message = exists
+            ? `${rule.field} ${existenceCondition}`
+            : `${rule.field} does not ${existenceCondition}`;
           break;
       }
 
@@ -543,15 +577,17 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                     <Play className="w-4 h-4 mr-1" />
                     {isExecuting ? 'Running...' : 'Run Selected'}
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleCodeGeneration}
-                    disabled={executionResults.filter(r => r.status === 'success').length === 0}
-                    className="flex items-center"
-                  >
-                    <FileCode className="w-4 h-4 mr-1" />
-                    Generate Code
-                  </Button>
+                  {isFeatureEnabled('standardCodeGeneration') && (
+                    <Button
+                      variant="outline"
+                      onClick={handleCodeGeneration}
+                      disabled={executionResults.filter(r => r.status === 'success').length === 0}
+                      className="flex items-center"
+                    >
+                      <FileCode className="w-4 h-4 mr-1" />
+                      Generate Code
+                    </Button>
+                  )}
                   {isFeatureEnabled('bddCodeGeneration') && (
                     <Button
                       variant="outline"
@@ -764,7 +800,8 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                    </Collapsible>
 
                    {/* Test Code Generation Section - Collapsible */}
-                   <Collapsible>
+                   {(isFeatureEnabled('standardCodeGeneration') || isFeatureEnabled('bddCodeGeneration')) && (
+                     <Collapsible>
                      <CollapsibleTrigger asChild>
                        <Card className="border-2 border-dashed border-blue-200 bg-blue-50 cursor-pointer hover:bg-blue-100/50 transition-colors">
                          <CardHeader>
@@ -780,9 +817,19 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                                    : `${executionResults.length} executed`
                                  }
                                </Badge>
+                               {isFeatureEnabled('standardCodeGeneration') && (
+                                 <Badge variant="outline" className="bg-blue-100 text-blue-700">
+                                   Standard
+                                 </Badge>
+                               )}
+                               {isFeatureEnabled('karateFramework') && (
+                                 <Badge variant="outline" className="bg-purple-100 text-purple-700">
+                                   Karate
+                                 </Badge>
+                               )}
                                {isFeatureEnabled('bddCodeGeneration') && (
                                  <Badge variant="outline" className="bg-green-100 text-green-700">
-                                   BDD Ready
+                                   BDD
                                  </Badge>
                                )}
                                <ChevronDown className="h-4 w-4 transition-transform duration-200" />
@@ -813,39 +860,43 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                            </div>
                            
                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                             <Button
-                               onClick={() => handleMultiEndpointCodeGeneration('cucumber')}
-                               className="flex items-center justify-center h-20 flex-col space-y-2 bg-blue-600 hover:bg-blue-700"
-                             >
-                               <div className="flex items-center">
-                                 <Coffee className="w-5 h-5 mr-2" />
-                                 <span className="font-semibold">Cucumber Java</span>
-                               </div>
-                               <div className="text-xs text-center">
-                                 Complete Maven Project
-                               </div>
-                               <div className="flex items-center text-xs">
-                                 <Archive className="w-3 h-3 mr-1" />
-                                 ZIP download
-                               </div>
-                             </Button>
+                             {isFeatureEnabled('standardCodeGeneration') && (
+                               <Button
+                                 onClick={() => handleMultiEndpointCodeGeneration('cucumber')}
+                                 className="flex items-center justify-center h-20 flex-col space-y-2 bg-blue-600 hover:bg-blue-700"
+                               >
+                                 <div className="flex items-center">
+                                   <Coffee className="w-5 h-5 mr-2" />
+                                   <span className="font-semibold">Standard Code</span>
+                                 </div>
+                                 <div className="text-xs text-center">
+                                   Cucumber + RestAssured
+                                 </div>
+                                 <div className="flex items-center text-xs">
+                                   <Archive className="w-3 h-3 mr-1" />
+                                   ZIP download
+                                 </div>
+                               </Button>
+                             )}
 
-                             <Button
-                               onClick={() => handleMultiEndpointCodeGeneration('karate')}
-                               className="flex items-center justify-center h-20 flex-col space-y-2 bg-blue-600 hover:bg-blue-700"
-                             >
-                               <div className="flex items-center">
-                                 <FileCode className="w-5 h-5 mr-2" />
-                                 <span className="font-semibold">Karate DSL</span>
-                               </div>
-                               <div className="text-xs text-center">
-                                 Feature files bundle
-                               </div>
-                               <div className="flex items-center text-xs">
-                                 <Archive className="w-3 h-3 mr-1" />
-                                 ZIP download
-                               </div>
-                             </Button>
+                             {isFeatureEnabled('karateFramework') && (
+                               <Button
+                                 onClick={() => handleMultiEndpointCodeGeneration('karate')}
+                                 className="flex items-center justify-center h-20 flex-col space-y-2 bg-purple-600 hover:bg-purple-700"
+                               >
+                                 <div className="flex items-center">
+                                   <FileCode className="w-5 h-5 mr-2" />
+                                   <span className="font-semibold">Karate DSL</span>
+                                 </div>
+                                 <div className="text-xs text-center">
+                                   Feature files bundle
+                                 </div>
+                                 <div className="flex items-center text-xs">
+                                   <Archive className="w-3 h-3 mr-1" />
+                                   ZIP download
+                                 </div>
+                               </Button>
+                             )}
 
                              {isFeatureEnabled('bddCodeGeneration') && (
                                <Button
@@ -874,17 +925,23 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                                  ? executionResults.filter(r => r.status === 'success').length 
                                  : executionResults.length} {onlySuccessfulTests ? 'successful' : 'executed'} endpoints</li>
                                <li>• All configured validation rules per endpoint</li>
-                               <li>• Complete project structure (Maven for Cucumber)</li>
-                               <li>• Ready-to-run test automation code</li>
-                               {isFeatureEnabled('bddCodeGeneration') && (
-                                 <li>• BDD Feature files with Step Definitions (Cucumber/Karate)</li>
+                               {isFeatureEnabled('standardCodeGeneration') && (
+                                 <li>• Standard Cucumber + RestAssured test code</li>
                                )}
+                               {isFeatureEnabled('karateFramework') && (
+                                 <li>• Karate DSL feature files</li>
+                               )}
+                               {isFeatureEnabled('bddCodeGeneration') && (
+                                 <li>• BDD Feature files with Step Definitions</li>
+                               )}
+                               <li>• Ready-to-run test automation code</li>
                              </ul>
                            </div>
                          </CardContent>
                        </Card>
                      </CollapsibleContent>
                    </Collapsible>
+                   )}
 
                   {/* Test Report Panel */}
                   {isFeatureEnabled('reporting') && (

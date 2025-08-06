@@ -21,10 +21,10 @@ export const Header = () => {
           </div>
 
           <div className="flex items-center space-x-4">
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-              Ready
-            </Badge>
+            {/*<Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">*/}
+            {/*  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>*/}
+            {/*  Ready*/}
+            {/*</Badge>*/}
           </div>
         </div>
       </div>
