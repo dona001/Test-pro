@@ -14,6 +14,7 @@ interface ApiResponse {
   headers: Record<string, string>;
   data: any;
   responseTime: number;
+  success?: boolean; // For wrapper responses
 }
 
 interface ResponseValidationProps {
@@ -88,12 +89,18 @@ export const ResponseValidation: React.FC<ResponseValidationProps> = ({ response
     switch (rule.type) {
       case 'status':
         const expectedStatus = parseInt(rule.expectedValue || '200');
-        const passed = response.status === expectedStatus;
+        // Handle wrapper response structure
+        let actualStatus = response.status;
+        if (response.success !== undefined && response.data !== undefined) {
+          // This is a wrapper response, status is at the top level
+          actualStatus = response.status;
+        }
+        const passed = actualStatus === expectedStatus;
         return {
           result: passed ? 'pass' : 'fail',
           message: passed 
-            ? `Status ${response.status} matches expected ${expectedStatus}`
-            : `Status ${response.status} does not match expected ${expectedStatus}`
+            ? `Status ${actualStatus} matches expected ${expectedStatus}`
+            : `Status ${actualStatus} does not match expected ${expectedStatus}`
         };
 
       case 'value':
