@@ -1,110 +1,110 @@
-import { getBDDConfig } from '@/config';
+import {getBDDConfig} from '@/config';
 
 // BDD Framework specific configuration
 export interface BDDConfig {
-  framework: 'cucumber' | 'karate';
-  language: 'java' | 'kotlin';
-  basePackage: string;
-  useLombok: boolean;
-  generatePOJOs: boolean;
-  generateServiceClasses: boolean;
-  generateStepDefinitions: boolean;
-  generateFeatureFiles: boolean;
+    framework: 'cucumber' | 'karate';
+    language: 'java' | 'kotlin';
+    basePackage: string;
+    useLombok: boolean;
+    generatePOJOs: boolean;
+    generateServiceClasses: boolean;
+    generateStepDefinitions: boolean;
+    generateFeatureFiles: boolean;
 }
 
 export interface Endpoint {
-  method: string;
-  path: string;
-  name: string;
-  description?: string;
-  requestBody?: any;
-  responseBody?: any;
-  parameters?: Array<{
+    method: string;
+    path: string;
     name: string;
-    type: string;
-    required: boolean;
     description?: string;
-  }>;
-  // Real API data
-  url?: string;
-  headers?: Record<string, string>;
-  actualResponse?: {
-    status: number;
-    data: any;
-    headers: Record<string, any>;
-    responseTime: number;
-  };
-  validationRules?: Array<{
-    type: 'status' | 'value' | 'existence';
-    field?: string;
-    expectedValue?: string;
-    condition?: 'equals' | 'not_equals' | 'contains' | 'starts_with' | 'ends_with' | 'is_empty' | 'is_not_empty' | 'is_null' | 'is_not_null';
-  }>;
+    requestBody?: any;
+    responseBody?: any;
+    parameters?: Array<{
+        name: string;
+        type: string;
+        required: boolean;
+        description?: string;
+    }>;
+    // Real API data
+    url?: string;
+    headers?: Record<string, string>;
+    actualResponse?: {
+        status: number;
+        data: any;
+        headers: Record<string, any>;
+        responseTime: number;
+    };
+    validationRules?: Array<{
+        type: 'status' | 'value' | 'existence';
+        field?: string;
+        expectedValue?: string;
+        condition?: 'equals' | 'not_equals' | 'contains' | 'starts_with' | 'ends_with' | 'is_empty' | 'is_not_empty' | 'is_null' | 'is_not_null';
+    }>;
 }
 
 export interface GeneratedCode {
-  featureFiles: Array<{ name: string; content: string }>;
-  stepDefinitions: Array<{ name: string; content: string }>;
-  serviceClasses: Array<{ name: string; content: string }>;
-  pojos: Array<{ name: string; content: string }>;
+    featureFiles: Array<{ name: string; content: string }>;
+    stepDefinitions: Array<{ name: string; content: string }>;
+    serviceClasses: Array<{ name: string; content: string }>;
+    pojos: Array<{ name: string; content: string }>;
 }
 
 export class BDDCodeGenerator {
-  private config: BDDConfig;
+    private config: BDDConfig;
 
-  constructor() {
-    this.config = getBDDConfig() as BDDConfig;
-  }
-
-  generateCode(endpoints: Endpoint[]): GeneratedCode {
-    const result: GeneratedCode = {
-      featureFiles: [],
-      stepDefinitions: [],
-      serviceClasses: [],
-      pojos: [],
-    };
-
-    for (const endpoint of endpoints) {
-      const endpointCode = this.generateEndpointCode(endpoint);
-      
-      result.featureFiles.push(...endpointCode.featureFiles);
-      result.stepDefinitions.push(...endpointCode.stepDefinitions);
-      result.serviceClasses.push(...endpointCode.serviceClasses);
-      result.pojos.push(...endpointCode.pojos);
+    constructor() {
+        this.config = getBDDConfig() as BDDConfig;
     }
 
-    return result;
-  }
+    generateCode(endpoints: Endpoint[]): GeneratedCode {
+        const result: GeneratedCode = {
+            featureFiles: [],
+            stepDefinitions: [],
+            serviceClasses: [],
+            pojos: [],
+        };
 
-  private generateEndpointCode(endpoint: Endpoint) {
-    const className = this.generateClassName(endpoint.name);
-    const featureName = this.generateFeatureName(endpoint.name);
-    
-    return {
-      featureFiles: [this.generateFeatureFile(endpoint, featureName)],
-      stepDefinitions: [this.generateStepDefinitions(endpoint, className)],
-      serviceClasses: [this.generateServiceClass(endpoint, className)],
-      pojos: this.generatePOJOs(endpoint, className),
-    };
-  }
+        for (const endpoint of endpoints) {
+            const endpointCode = this.generateEndpointCode(endpoint);
 
-  private generateClassName(name: string): string {
-    return name
-      .split(/[-_\s]/)
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join('');
-  }
+            result.featureFiles.push(...endpointCode.featureFiles);
+            result.stepDefinitions.push(...endpointCode.stepDefinitions);
+            result.serviceClasses.push(...endpointCode.serviceClasses);
+            result.pojos.push(...endpointCode.pojos);
+        }
 
-  private generateFeatureName(name: string): string {
-    return name.toLowerCase().replace(/[-_\s]/g, '_');
-  }
+        return result;
+    }
 
-  private generateFeatureFile(endpoint: Endpoint, featureName: string) {
-    const method = endpoint.method.toUpperCase();
-    const path = endpoint.path;
-    const description = endpoint.description || `${method} ${path}`;
+    private generateEndpointCode(endpoint: Endpoint) {
+        const className = this.generateClassName(endpoint.name);
+        const featureName = this.generateFeatureName(endpoint.name);
 
-    let content = `Feature: ${description}
+        return {
+            featureFiles: [this.generateFeatureFile(endpoint, featureName)],
+            stepDefinitions: [this.generateStepDefinitions(endpoint, className)],
+            serviceClasses: [this.generateServiceClass(endpoint, className)],
+            pojos: this.generatePOJOs(endpoint, className),
+        };
+    }
+
+    private generateClassName(name: string): string {
+        return name
+            .split(/[-_\s]/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join('');
+    }
+
+    private generateFeatureName(name: string): string {
+        return name.toLowerCase().replace(/[-_\s]/g, '_');
+    }
+
+    private generateFeatureFile(endpoint: Endpoint, featureName: string) {
+        const method = endpoint.method.toUpperCase();
+        const path = endpoint.path;
+        const description = endpoint.description || `${method} ${path}`;
+
+        let content = `Feature: ${description}
 
   @${method.toLowerCase()} @${this.getTagFromPath(path)}
   Scenario: Successfully ${this.getActionFromMethod(method)} ${this.getResourceFromPath(path)} - Positive
@@ -121,8 +121,8 @@ export class BDDCodeGenerator {
     And the response should contain an error message
 `;
 
-    if (method === 'GET' && path.includes('{')) {
-      content += `
+        if (method === 'GET' && path.includes('{')) {
+            content += `
   @${method.toLowerCase()} @${this.getTagFromPath(path)}
   Scenario: Successfully ${this.getActionFromMethod(method)} ${this.getResourceFromPath(path)} by ID
     Given I have a valid ${this.getResourceFromPath(path)} ID
@@ -130,22 +130,22 @@ export class BDDCodeGenerator {
     Then the response status code should be 200
     And the response should contain the ${this.getResourceFromPath(path)} details
 `;
+        }
+
+        return {
+            name: `${featureName}.feature`,
+            content,
+        };
     }
 
-    return {
-      name: `${featureName}.feature`,
-      content,
-    };
-  }
+    private generateStepDefinitions(endpoint: Endpoint, className: string) {
+        const method = endpoint.method.toUpperCase();
+        const resource = this.getResourceFromPath(endpoint.path);
+        const requestClass = `${className}Request`;
+        const responseClass = `${className}Response`;
+        const serviceClass = `${className}Service`;
 
-  private generateStepDefinitions(endpoint: Endpoint, className: string) {
-    const method = endpoint.method.toUpperCase();
-    const resource = this.getResourceFromPath(endpoint.path);
-    const requestClass = `${className}Request`;
-    const responseClass = `${className}Response`;
-    const serviceClass = `${className}Service`;
-
-    const content = `package ${this.config.basePackage}.steps;
+        const content = `package ${this.config.basePackage}.steps;
 
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
@@ -208,19 +208,19 @@ public class ${className}Steps {
     }
 }`;
 
-    return {
-      name: `${className}Steps.java`,
-      content,
-    };
-  }
+        return {
+            name: `${className}Steps.java`,
+            content,
+        };
+    }
 
-  private generateServiceClass(endpoint: Endpoint, className: string) {
-    const method = endpoint.method.toUpperCase();
-    const resource = this.getResourceFromPath(endpoint.path);
-    const requestClass = `${className}Request`;
-    const responseClass = `${className}Response`;
+    private generateServiceClass(endpoint: Endpoint, className: string) {
+        const method = endpoint.method.toUpperCase();
+        const resource = this.getResourceFromPath(endpoint.path);
+        const requestClass = `${className}Request`;
+        const responseClass = `${className}Response`;
 
-    const content = `package ${this.config.basePackage}.service;
+        const content = `package ${this.config.basePackage}.service;
 
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
@@ -260,153 +260,158 @@ public class ${className}Service {
     }
 }`;
 
-    return {
-      name: `${className}Service.java`,
-      content,
-    };
-  }
-
-  private generatePOJOs(endpoint: Endpoint, className: string) {
-    const pojos = [];
-    
-    // Use real request data if available, otherwise fall back to sample data
-    const requestData = endpoint.requestBody || 
-                       (endpoint.actualResponse ? this.extractRequestDataFromResponse(endpoint) : this.generateDefaultRequestFields(endpoint));
-    
-    // Generate Request POJO
-    if (requestData || endpoint.method.toUpperCase() !== 'GET') {
-      const requestContent = this.generatePOJOClass(
-        `${className}Request`,
-        requestData,
-        true
-      );
-      pojos.push({
-        name: `${className}Request.java`,
-        content: requestContent,
-      });
+        return {
+            name: `${className}Service.java`,
+            content,
+        };
     }
 
-    // Use real response data if available
-    const responseData = endpoint.actualResponse?.data || endpoint.responseBody;
-    if (responseData) {
-      const responseContent = this.generatePOJOClass(
-        `${className}Response`,
-        responseData,
-        false
-      );
-      pojos.push({
-        name: `${className}Response.java`,
-        content: responseContent,
-      });
+    private generatePOJOs(endpoint: Endpoint, className: string) {
+        const pojos = [];
+
+        // Use real request data if available, otherwise fall back to sample data
+        const requestData = endpoint.requestBody ||
+            (endpoint.actualResponse ? this.extractRequestDataFromResponse(endpoint) : this.generateDefaultRequestFields(endpoint));
+
+        // Generate Request POJO
+        if (requestData || endpoint.method.toUpperCase() !== 'GET') {
+            const requestContent = this.generatePOJOClass(
+                `${className}Request`,
+                requestData,
+                true
+            );
+            pojos.push({
+                name: `${className}Request.java`,
+                content: requestContent,
+            });
+        }
+
+        // Use real response data if available
+        const responseData = endpoint.actualResponse?.data || endpoint.responseBody;
+        if (responseData) {
+            const responseContent = this.generatePOJOClass(
+                `${className}Response`,
+                responseData,
+                false
+            );
+            pojos.push({
+                name: `${className}Response.java`,
+                content: responseContent,
+            });
+        }
+
+        return pojos;
     }
 
-    return pojos;
-  }
-
-  private extractRequestDataFromResponse(endpoint: Endpoint): any {
-    // Try to extract request data from the actual API call
-    if (endpoint.actualResponse?.data) {
-      // For POST/PUT requests, the response might contain the created/updated object
-      // which can give us clues about the request structure
-      return this.inferRequestStructureFromResponse(endpoint.actualResponse.data);
+    private extractRequestDataFromResponse(endpoint: Endpoint): any {
+        // Try to extract request data from the actual API call
+        if (endpoint.actualResponse?.data) {
+            // For POST/PUT requests, the response might contain the created/updated object
+            // which can give us clues about the request structure
+            return this.inferRequestStructureFromResponse(endpoint.actualResponse.data);
+        }
+        return this.generateDefaultRequestFields(endpoint);
     }
-    return this.generateDefaultRequestFields(endpoint);
-  }
 
-  private inferRequestStructureFromResponse(responseData: any): any {
-    // Infer request structure from response data
-    // This is a simple heuristic - in practice, you might want more sophisticated logic
-    if (typeof responseData === 'object' && responseData !== null) {
-      const inferredRequest: any = {};
-      
-      // Common patterns: if response has id, name, email, etc., request likely has similar fields
-      if (responseData.id !== undefined) {
-        // Don't include id in request (it's usually generated)
-      }
-      if (responseData.name !== undefined) {
-        inferredRequest.name = "string";
-      }
-      if (responseData.email !== undefined) {
-        inferredRequest.email = "string";
-      }
-      if (responseData.age !== undefined) {
-        inferredRequest.age = "number";
-      }
-      if (responseData.description !== undefined) {
-        inferredRequest.description = "string";
-      }
-      
-      return Object.keys(inferredRequest).length > 0 ? inferredRequest : null;
+    private inferRequestStructureFromResponse(responseData: any): any {
+        // Infer request structure from response data
+        // This is a simple heuristic - in practice, you might want more sophisticated logic
+        if (typeof responseData === 'object' && responseData !== null) {
+            const inferredRequest: any = {};
+
+            // Common patterns: if response has id, name, email, etc., request likely has similar fields
+            if (responseData.id !== undefined) {
+                // Don't include id in request (it's usually generated)
+            }
+            if (responseData.name !== undefined) {
+                inferredRequest.name = "string";
+            }
+            if (responseData.email !== undefined) {
+                inferredRequest.email = "string";
+            }
+            if (responseData.age !== undefined) {
+                inferredRequest.age = "number";
+            }
+            if (responseData.description !== undefined) {
+                inferredRequest.description = "string";
+            }
+
+            return Object.keys(inferredRequest).length > 0 ? inferredRequest : null;
+        }
+        return null;
     }
-    return null;
-  }
 
-  private generatePOJOClass(className: string, data: any, isRequest: boolean) {
-    const fields = this.extractFields(data);
-    const lombokImports = this.config.useLombok ? `
+    private generatePOJOClass(className: string, data: any, isRequest: boolean) {
+        const fields = this.extractFields(data);
+        const lombokImports = this.config.useLombok ? `
 import lombok.Data;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;` : '';
 
-    const lombokAnnotations = this.config.useLombok ? `
+        const lombokAnnotations = this.config.useLombok ? `
 @Data
 ${isRequest ? '@Builder' : ''}
 @NoArgsConstructor
 @AllArgsConstructor` : '';
 
-    const fieldsCode = fields.map(field => {
-      const fieldType = this.getJavaType(field.type);
-      const fieldName = field.name;
-      const annotation = this.config.useLombok ? '' : `
+        const fieldsCode = fields.map(field => {
+            const fieldType = this.getJavaType(field.type);
+            const fieldName = field.name;
+            const annotation = this.config.useLombok ? '' : `
     @JsonProperty("${fieldName}")
     private ${fieldType} ${this.camelCase(fieldName)};`;
-      
-      return this.config.useLombok ? 
-        `    private ${fieldType} ${this.camelCase(fieldName)};` : 
-        annotation;
-    }).join('\n');
 
-    const gettersSetters = this.config.useLombok ? '' : this.generateGettersSetters(fields);
+            return this.config.useLombok ?
+                `    private ${fieldType} ${this.camelCase(fieldName)};` :
+                annotation;
+        }).join('\n');
 
-    return `package ${this.config.basePackage}.model;
+        const gettersSetters = this.config.useLombok ? '' : this.generateGettersSetters(fields);
+
+        return `package ${this.config.basePackage}.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;${lombokImports}
 
 public class ${className} {${lombokAnnotations}
 ${fieldsCode}${gettersSetters}
 }`;
-  }
-
-  private extractFields(data: any): Array<{ name: string; type: string }> {
-    if (!data || typeof data !== 'object') {
-      return [];
     }
 
-    return Object.entries(data).map(([key, value]) => ({
-      name: key,
-      type: this.getJavaType(typeof value),
-    }));
-  }
+    private extractFields(data: any): Array<{ name: string; type: string }> {
+        if (!data || typeof data !== 'object') {
+            return [];
+        }
 
-  private getJavaType(jsType: string): string {
-    switch (jsType) {
-      case 'string': return 'String';
-      case 'number': return 'Integer';
-      case 'boolean': return 'Boolean';
-      case 'object': return 'Object';
-      default: return 'String';
+        return Object.entries(data).map(([key, value]) => ({
+            name: key,
+            type: this.getJavaType(typeof value),
+        }));
     }
-  }
 
-  private generateGettersSetters(fields: Array<{ name: string; type: string }>): string {
-    return fields.map(field => {
-      const fieldName = this.camelCase(field.name);
-      const fieldType = field.type;
-      const getterName = field.type === 'Boolean' ? `is${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}` : `get${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}`;
-      const setterName = `set${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}`;
+    private getJavaType(jsType: string): string {
+        switch (jsType) {
+            case 'string':
+                return 'String';
+            case 'number':
+                return 'Integer';
+            case 'boolean':
+                return 'Boolean';
+            case 'object':
+                return 'Object';
+            default:
+                return 'String';
+        }
+    }
 
-      return `
+    private generateGettersSetters(fields: Array<{ name: string; type: string }>): string {
+        return fields.map(field => {
+            const fieldName = this.camelCase(field.name);
+            const fieldType = field.type;
+            const getterName = field.type === 'Boolean' ? `is${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}` : `get${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}`;
+            const setterName = `set${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}`;
+
+            return `
 
     public ${fieldType} ${getterName}() {
         return ${fieldName};
@@ -415,165 +420,188 @@ ${fieldsCode}${gettersSetters}
     public void ${setterName}(${fieldType} ${fieldName}) {
         this.${fieldName} = ${fieldName};
     }`;
-    }).join('');
-  }
-
-  private generateRequestBuilder(endpoint: Endpoint): string {
-    if (!endpoint.requestBody) {
-      return this.generateDefaultRequestBuilder(endpoint);
+        }).join('');
     }
 
-    return Object.entries(endpoint.requestBody).map(([key, value]) => {
-      const fieldName = this.camelCase(key);
-      const fieldValue = typeof value === 'string' ? `"${value}"` : value;
-      return `                .${fieldName}(${fieldValue})`;
-    }).join('\n');
-  }
+    private generateRequestBuilder(endpoint: Endpoint): string {
+        if (!endpoint.requestBody) {
+            return this.generateDefaultRequestBuilder(endpoint);
+        }
 
-  private generateInvalidRequestBuilder(endpoint: Endpoint): string {
-    return Object.entries(endpoint.requestBody || {}).map(([key, value]) => {
-      const fieldName = this.camelCase(key);
-      return `                .${fieldName}(null)`;
-    }).join('\n');
-  }
-
-  private generateResponseAssertions(endpoint: Endpoint): string {
-    const responseData = endpoint.actualResponse?.data || endpoint.responseBody;
-    if (!responseData) {
-      return '// Add specific assertions based on your response structure';
+        return Object.entries(endpoint.requestBody).map(([key, value]) => {
+            const fieldName = this.camelCase(key);
+            const fieldValue = typeof value === 'string' ? `"${value}"` : value;
+            return `                .${fieldName}(${fieldValue})`;
+        }).join('\n');
     }
 
-    return Object.entries(responseData).map(([key, value]) => {
-      const fieldName = this.camelCase(key);
-      const assertionValue = typeof value === 'string' ? `"${value}"` : value;
-      return `        assertEquals(${assertionValue}, response.get${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}());`;
-    }).join('\n');
-  }
-
-  private generateValidationSteps(endpoint: Endpoint): string {
-    if (!endpoint.validationRules || endpoint.validationRules.length === 0) {
-      return '';
+    private generateInvalidRequestBuilder(endpoint: Endpoint): string {
+        return Object.entries(endpoint.requestBody || {}).map(([key, value]) => {
+            const fieldName = this.camelCase(key);
+            return `                .${fieldName}(null)`;
+        }).join('\n');
     }
 
-    return endpoint.validationRules.map((rule, index) => {
-      const stepName = this.generateValidationStepName(rule);
-      const assertion = this.generateValidationAssertion(rule);
-      return `
+    private generateResponseAssertions(endpoint: Endpoint): string {
+        const responseData = endpoint.actualResponse?.data || endpoint.responseBody;
+        if (!responseData) {
+            return '// Add specific assertions based on your response structure';
+        }
+
+        return Object.entries(responseData).map(([key, value]) => {
+            const fieldName = this.camelCase(key);
+            const assertionValue = typeof value === 'string' ? `"${value}"` : value;
+            return `        assertEquals(${assertionValue}, response.get${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}());`;
+        }).join('\n');
+    }
+
+    private generateValidationSteps(endpoint: Endpoint): string {
+        if (!endpoint.validationRules || endpoint.validationRules.length === 0) {
+            return '';
+        }
+
+        return endpoint.validationRules.map((rule, index) => {
+            const stepName = this.generateValidationStepName(rule);
+            const assertion = this.generateValidationAssertion(rule);
+            return `
     @Then("${stepName}")
     public void validate${index + 1}() {
         ${assertion}
     }`;
-    }).join('');
-  }
-
-  private generateValidationStepName(rule: any): string {
-    switch (rule.type) {
-      case 'status':
-        return `the response status should be ${rule.expectedValue || '200'}`;
-      case 'value':
-        const condition = rule.condition || 'equals';
-        return `the response field "${rule.field}" should ${condition} "${rule.expectedValue}"`;
-      case 'existence':
-        const existenceCondition = rule.condition || 'is_not_empty';
-        return `the response field "${rule.field}" should ${existenceCondition}`;
-      default:
-        return `the response should match validation rule "${rule.type}"`;
+        }).join('');
     }
-  }
 
-  private generateValidationAssertion(rule: any): string {
-    switch (rule.type) {
-      case 'status':
-        return `assertEquals(${rule.expectedValue || '200'}, response.getStatusCode());`;
-      case 'value':
-        const condition = rule.condition || 'equals';
-        const fieldPath = rule.field?.split('.').join('().') || 'data';
-        return `assertThat(response.jsonPath().get("${fieldPath}"), ${this.getAssertionMethod(condition)}("${rule.expectedValue}"));`;
-      case 'existence':
-        const existenceCondition = rule.condition || 'is_not_empty';
-        const fieldPath2 = rule.field?.split('.').join('().') || 'data';
-        return `assertThat(response.jsonPath().get("${fieldPath2}"), ${this.getExistenceAssertionMethod(existenceCondition)}());`;
-      default:
-        return `// Custom validation for ${rule.type}`;
+    private generateValidationStepName(rule: any): string {
+        switch (rule.type) {
+            case 'status':
+                return `the response status should be ${rule.expectedValue || '200'}`;
+            case 'value':
+                const condition = rule.condition || 'equals';
+                return `the response field "${rule.field}" should ${condition} "${rule.expectedValue}"`;
+            case 'existence':
+                const existenceCondition = rule.condition || 'is_not_empty';
+                return `the response field "${rule.field}" should ${existenceCondition}`;
+            default:
+                return `the response should match validation rule "${rule.type}"`;
+        }
     }
-  }
 
-  private getAssertionMethod(condition: string): string {
-    switch (condition) {
-      case 'equals': return 'is';
-      case 'not_equals': return 'isNot';
-      case 'contains': return 'containsString';
-      case 'starts_with': return 'startsWith';
-      case 'ends_with': return 'endsWith';
-      default: return 'is';
+    private generateValidationAssertion(rule: any): string {
+        switch (rule.type) {
+            case 'status':
+                return `assertEquals(${rule.expectedValue || '200'}, response.getStatusCode());`;
+            case 'value':
+                const condition = rule.condition || 'equals';
+                const fieldPath = rule.field?.split('.').join('().') || 'data';
+                return `assertThat(response.jsonPath().get("${fieldPath}"), ${this.getAssertionMethod(condition)}("${rule.expectedValue}"));`;
+            case 'existence':
+                const existenceCondition = rule.condition || 'is_not_empty';
+                const fieldPath2 = rule.field?.split('.').join('().') || 'data';
+                return `assertThat(response.jsonPath().get("${fieldPath2}"), ${this.getExistenceAssertionMethod(existenceCondition)}());`;
+            default:
+                return `// Custom validation for ${rule.type}`;
+        }
     }
-  }
 
-  private getExistenceAssertionMethod(condition: string): string {
-    switch (condition) {
-      case 'is_empty': return 'isEmpty';
-      case 'is_not_empty': return 'isNotEmpty';
-      case 'is_null': return 'isNull';
-      case 'is_not_null': return 'isNotNull';
-      default: return 'isNotEmpty';
+    private getAssertionMethod(condition: string): string {
+        switch (condition) {
+            case 'equals':
+                return 'is';
+            case 'not_equals':
+                return 'isNot';
+            case 'contains':
+                return 'containsString';
+            case 'starts_with':
+                return 'startsWith';
+            case 'ends_with':
+                return 'endsWith';
+            default:
+                return 'is';
+        }
     }
-  }
 
-  private generateDefaultRequestFields(endpoint: Endpoint): any {
-    // Generate default fields based on endpoint path
-    const resource = this.getResourceFromPath(endpoint.path);
-    return {
-      id: 1,
-      name: "Test Name",
-      email: "test@example.com",
-    };
-  }
+    private getExistenceAssertionMethod(condition: string): string {
+        switch (condition) {
+            case 'is_empty':
+                return 'isEmpty';
+            case 'is_not_empty':
+                return 'isNotEmpty';
+            case 'is_null':
+                return 'isNull';
+            case 'is_not_null':
+                return 'isNotNull';
+            default:
+                return 'isNotEmpty';
+        }
+    }
 
-  private generateDefaultRequestBuilder(endpoint: Endpoint): string {
-    const resource = this.getResourceFromPath(endpoint.path);
-    return `                .name("Test ${resource}")
+    private generateDefaultRequestFields(endpoint: Endpoint): any {
+        // Generate default fields based on endpoint path
+        const resource = this.getResourceFromPath(endpoint.path);
+        return {
+            id: 1,
+            name: "Test Name",
+            email: "test@example.com",
+        };
+    }
+
+    private generateDefaultRequestBuilder(endpoint: Endpoint): string {
+        const resource = this.getResourceFromPath(endpoint.path);
+        return `                .name("Test ${resource}")
                 .email("test@example.com")`;
-  }
-
-  // Helper methods
-  private getTagFromPath(path: string): string {
-    const parts = path.split('/').filter(p => p);
-    return parts[0] || 'api';
-  }
-
-  private getResourceFromPath(path: string): string {
-    const parts = path.split('/').filter(p => p);
-    return parts[parts.length - 1] || 'resource';
-  }
-
-  private getActionFromMethod(method: string): string {
-    switch (method) {
-      case 'GET': return 'get';
-      case 'POST': return 'create';
-      case 'PUT': return 'update';
-      case 'DELETE': return 'delete';
-      case 'PATCH': return 'patch';
-      default: return 'process';
     }
-  }
 
-  private getExpectedStatus(method: string): string {
-    switch (method) {
-      case 'GET': return '200';
-      case 'POST': return '201';
-      case 'PUT': return '200';
-      case 'DELETE': return '204';
-      case 'PATCH': return '200';
-      default: return '200';
+    // Helper methods
+    private getTagFromPath(path: string): string {
+        const parts = path.split('/').filter(p => p);
+        return parts[0] || 'api';
     }
-  }
 
-  private getMethodName(method: string, resource: string): string {
-    const action = this.getActionFromMethod(method);
-    return `${action}${resource.charAt(0).toUpperCase() + resource.slice(1)}`;
-  }
+    private getResourceFromPath(path: string): string {
+        const parts = path.split('/').filter(p => p);
+        return parts[parts.length - 1] || 'resource';
+    }
 
-  private camelCase(str: string): string {
-    return str.charAt(0).toLowerCase() + str.slice(1);
-  }
+    private getActionFromMethod(method: string): string {
+        switch (method) {
+            case 'GET':
+                return 'get';
+            case 'POST':
+                return 'create';
+            case 'PUT':
+                return 'update';
+            case 'DELETE':
+                return 'delete';
+            case 'PATCH':
+                return 'patch';
+            default:
+                return 'process';
+        }
+    }
+
+    private getExpectedStatus(method: string): string {
+        switch (method) {
+            case 'GET':
+                return '200';
+            case 'POST':
+                return '201';
+            case 'PUT':
+                return '200';
+            case 'DELETE':
+                return '204';
+            case 'PATCH':
+                return '200';
+            default:
+                return '200';
+        }
+    }
+
+    private getMethodName(method: string, resource: string): string {
+        const action = this.getActionFromMethod(method);
+        return `${action}${resource.charAt(0).toUpperCase() + resource.slice(1)}`;
+    }
+
+    private camelCase(str: string): string {
+        return str.charAt(0).toLowerCase() + str.slice(1);
+    }
 } 

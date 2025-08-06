@@ -2,132 +2,132 @@
 // Generates beautiful HTML reports without requiring a server
 
 interface ValidationRule {
-  id: string;
-  type: 'status' | 'header' | 'body' | 'responseTime';
-  field?: string;
-  expectedValue: string;
-  result?: 'pass' | 'fail';
-  message?: string;
+    id: string;
+    type: 'status' | 'header' | 'body' | 'responseTime';
+    field?: string;
+    expectedValue: string;
+    result?: 'pass' | 'fail';
+    message?: string;
 }
 
 interface Endpoint {
-  id: string;
-  name: string;
-  method: string;
-  url: string;
-  headers: Record<string, string>;
-  body?: string;
-  description?: string;
+    id: string;
+    name: string;
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body?: string;
+    description?: string;
 }
 
 interface ExecutionResult {
-  endpoint: Endpoint;
-  status: 'success' | 'error' | 'pending';
-  response?: {
-    status: number;
-    data: any;
-    headers: Record<string, string>;
-    time: number;
-  };
-  error?: string;
-  validationResults?: ValidationRule[];
+    endpoint: Endpoint;
+    status: 'success' | 'error' | 'pending';
+    response?: {
+        status: number;
+        data: any;
+        headers: Record<string, string>;
+        time: number;
+    };
+    error?: string;
+    validationResults?: ValidationRule[];
 }
 
 interface ExtentTestResult {
-  name: string;
-  description: string;
-  status: 'pass' | 'fail' | 'skip' | 'warning';
-  startTime: number;
-  endTime: number;
-  duration: number;
-  method: string;
-  url: string;
-  requestHeaders: Record<string, string>;
-  requestBody?: string;
-  responseStatus?: number;
-  responseHeaders?: Record<string, string>;
-  responseBody?: any;
-  responseTime?: number;
-  error?: string;
-  validations: ValidationRule[];
+    name: string;
+    description: string;
+    status: 'pass' | 'fail' | 'skip' | 'warning';
+    startTime: number;
+    endTime: number;
+    duration: number;
+    method: string;
+    url: string;
+    requestHeaders: Record<string, string>;
+    requestBody?: string;
+    responseStatus?: number;
+    responseHeaders?: Record<string, string>;
+    responseBody?: any;
+    responseTime?: number;
+    error?: string;
+    validations: ValidationRule[];
 }
 
 export class ExtentReporter {
-  private results: ExtentTestResult[] = [];
+    private results: ExtentTestResult[] = [];
 
-  /**
-   * Generate Extent report from test execution results
-   */
-  async generateReport(
-    results: ExecutionResult[],
-    collectionName: string = 'API Test Collection'
-  ): Promise<string> {
-    this.results = [];
+    /**
+     * Generate Extent report from test execution results
+     */
+    async generateReport(
+        results: ExecutionResult[],
+        collectionName: string = 'API Test Collection'
+    ): Promise<string> {
+        this.results = [];
 
-    // Process each test result
-    for (const result of results) {
-      const startTime = Date.now();
-      const endTime = startTime + (result.response?.time || 1000);
+        // Process each test result
+        for (const result of results) {
+            const startTime = Date.now();
+            const endTime = startTime + (result.response?.time || 1000);
 
-      const extentResult: ExtentTestResult = {
-        name: result.endpoint.name,
-        description: result.endpoint.description || `Test for ${result.endpoint.method} ${result.endpoint.url}`,
-        status: this.mapStatus(result.status),
-        startTime,
-        endTime,
-        duration: result.response?.time || 0,
-        method: result.endpoint.method,
-        url: result.endpoint.url,
-        requestHeaders: result.endpoint.headers,
-        requestBody: result.endpoint.body,
-        responseStatus: result.response?.status,
-        responseHeaders: result.response?.headers,
-        responseBody: result.response?.data,
-        responseTime: result.response?.time,
-        error: result.error,
-        validations: result.validationResults || []
-      };
+            const extentResult: ExtentTestResult = {
+                name: result.endpoint.name,
+                description: result.endpoint.description || `Test for ${result.endpoint.method} ${result.endpoint.url}`,
+                status: this.mapStatus(result.status),
+                startTime,
+                endTime,
+                duration: result.response?.time || 0,
+                method: result.endpoint.method,
+                url: result.endpoint.url,
+                requestHeaders: result.endpoint.headers,
+                requestBody: result.endpoint.body,
+                responseStatus: result.response?.status,
+                responseHeaders: result.response?.headers,
+                responseBody: result.response?.data,
+                responseTime: result.response?.time,
+                error: result.error,
+                validations: result.validationResults || []
+            };
 
-      this.results.push(extentResult);
+            this.results.push(extentResult);
+        }
+
+        // Generate HTML report
+        const htmlReport = this.generateHTMLReport(collectionName);
+
+        // Download the report
+        this.downloadHTML(htmlReport, `${collectionName.replace(/[^a-zA-Z0-9]/g, '_')}_extent_report.html`);
+
+        return 'extent-report-generated';
     }
 
-    // Generate HTML report
-    const htmlReport = this.generateHTMLReport(collectionName);
-    
-    // Download the report
-    this.downloadHTML(htmlReport, `${collectionName.replace(/[^a-zA-Z0-9]/g, '_')}_extent_report.html`);
-
-    return 'extent-report-generated';
-  }
-
-  /**
-   * Map internal status to Extent status
-   */
-  private mapStatus(status: string): 'pass' | 'fail' | 'skip' | 'warning' {
-    switch (status) {
-      case 'success':
-        return 'pass';
-      case 'error':
-        return 'fail';
-      case 'pending':
-        return 'skip';
-      default:
-        return 'warning';
+    /**
+     * Map internal status to Extent status
+     */
+    private mapStatus(status: string): 'pass' | 'fail' | 'skip' | 'warning' {
+        switch (status) {
+            case 'success':
+                return 'pass';
+            case 'error':
+                return 'fail';
+            case 'pending':
+                return 'skip';
+            default:
+                return 'warning';
+        }
     }
-  }
 
-  /**
-   * Generate beautiful HTML report
-   */
-  private generateHTMLReport(collectionName: string): string {
-    const timestamp = new Date().toISOString();
-    const totalTests = this.results.length;
-    const passedTests = this.results.filter(r => r.status === 'pass').length;
-    const failedTests = this.results.filter(r => r.status === 'fail').length;
-    const skippedTests = this.results.filter(r => r.status === 'skip').length;
-    const totalDuration = this.results.reduce((sum, r) => sum + r.duration, 0);
+    /**
+     * Generate beautiful HTML report
+     */
+    private generateHTMLReport(collectionName: string): string {
+        const timestamp = new Date().toISOString();
+        const totalTests = this.results.length;
+        const passedTests = this.results.filter(r => r.status === 'pass').length;
+        const failedTests = this.results.filter(r => r.status === 'fail').length;
+        const skippedTests = this.results.filter(r => r.status === 'skip').length;
+        const totalDuration = this.results.reduce((sum, r) => sum + r.duration, 0);
 
-    return `
+        return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -503,27 +503,27 @@ export class ExtentReporter {
     </div>
 </body>
 </html>`;
-  }
+    }
 
-  /**
-   * Download HTML file (browser-compatible)
-   */
-  private downloadHTML(htmlContent: string, filename: string): void {
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
+    /**
+     * Download HTML file (browser-compatible)
+     */
+    private downloadHTML(htmlContent: string, filename: string): void {
+        const blob = new Blob([htmlContent], {type: 'text/html'});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
 
-  /**
-   * Get Extent report info
-   */
-  getReportInfo(): string {
-    return 'Extent Reports - Beautiful HTML reports without server requirements';
-  }
+    /**
+     * Get Extent report info
+     */
+    getReportInfo(): string {
+        return 'Extent Reports - Beautiful HTML reports without server requirements';
+    }
 } 
