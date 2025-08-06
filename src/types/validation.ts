@@ -1,8 +1,9 @@
 export interface ValidationRule {
   id: string;
-  type: 'status' | 'header' | 'body' | 'responseTime' | 'value' | 'exists';
+  type: 'status' | 'value' | 'existence';
   field?: string;
   expectedValue?: string;
+  condition?: 'equals' | 'not_equals' | 'contains' | 'starts_with' | 'ends_with' | 'is_empty' | 'is_not_empty' | 'is_null' | 'is_not_null';
   result?: 'pass' | 'fail';
   message?: string;
 }
