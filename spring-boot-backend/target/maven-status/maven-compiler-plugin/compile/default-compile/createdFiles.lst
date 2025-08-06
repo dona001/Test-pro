@@ -1,8 +1,0 @@
-com/apitester/wrapper/controller/WrapperController.class
-com/apitester/wrapper/config/AppConfig.class
-com/apitester/wrapper/service/WrapperService.class
-com/apitester/wrapper/config/SecurityConfig.class
-com/apitester/wrapper/ApiWrapperApplication.class
-com/apitester/wrapper/model/WrapperResponse.class
-com/apitester/wrapper/model/WrapperResponse$WrapperInfo.class
-com/apitester/wrapper/model/WrapperRequest.class
