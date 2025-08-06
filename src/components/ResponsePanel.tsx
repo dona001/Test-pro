@@ -65,6 +65,8 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
     }
   };
 
+
+
   const validateResponseData = (response: any): boolean => {
     // Handle wrapper response structure
     if (response && typeof response === 'object') {
@@ -191,7 +193,20 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
             
             <TabsContent value="body" className="flex-1 flex flex-col">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium text-gray-900">Response Body</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-medium text-gray-900">Response Body</h4>
+                  {response && (
+                    <span 
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+                        response.status >= 200 && response.status < 300 
+                          ? "bg-green-100 text-green-800 border-green-300" 
+                          : "bg-red-100 text-red-800 border-red-300"
+                      }`}
+                    >
+                      {response.status} {response.statusText}
+                    </span>
+                  )}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -202,7 +217,7 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                   Copy JSON
                 </Button>
               </div>
-              {/* Simple response body display */}
+              {/* Enhanced response body display for large content */}
               <div className="flex-1 border rounded-lg bg-gray-50/50 overflow-hidden">
                 <ScrollArea className="h-[400px] p-4">
                   {response.status === 0 && response.data?.error ? (
@@ -211,12 +226,12 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                     />
                   ) : response.success !== undefined ? (
                     // Wrapper response structure
-                    <pre className="text-sm font-mono bg-white p-4 rounded border overflow-auto">
+                    <pre className="text-sm font-mono bg-white p-4 rounded border overflow-auto whitespace-pre-wrap break-words">
                       {formatJson(response.data)}
                     </pre>
                   ) : (
                     // Direct API response structure
-                    <pre className="text-sm font-mono bg-white p-4 rounded border overflow-auto">
+                    <pre className="text-sm font-mono bg-white p-4 rounded border overflow-auto whitespace-pre-wrap break-words">
                       {formatJson(response.data)}
                     </pre>
                   )}
@@ -247,7 +262,7 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                           <code className="font-mono text-sm font-semibold text-blue-700">
                             {key}
                           </code>
-                          <code className="font-mono text-sm text-gray-600 break-all">
+                          <code className="font-mono text-sm text-gray-600 break-all whitespace-pre-wrap">
                             {value}
                           </code>
                         </div>
