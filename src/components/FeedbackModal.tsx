@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { MessageSquare, Send, Loader2 } from 'lucide-react';
+import { getProxyServerUrl } from '@/config/proxy';
 
 interface FeedbackModalProps {
   trigger?: React.ReactNode;
@@ -64,7 +65,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/feedback', {
+      // Use the backend server URL from proxy configuration
+      const backendUrl = getProxyServerUrl();
+      const response = await fetch(`${backendUrl}/api/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,6 +78,10 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
           feedback: formData.feedback.trim()
         }),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
       const result = await response.json();
 
@@ -100,9 +107,22 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
       }
     } catch (error) {
       console.error('Feedback submission error:', error);
+      
+      let errorMessage = "Failed to submit feedback. Please check your connection and try again.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('404')) {
+          errorMessage = "Backend server not found. Please ensure the backend is running on port 3001.";
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = "Cannot connect to backend server. Please check if the backend is running.";
+        } else if (error.message.includes('Unexpected end of JSON')) {
+          errorMessage = "Invalid response from server. Please try again.";
+        }
+      }
+      
       toast({
         title: "Network Error",
-        description: "Failed to submit feedback. Please check your connection and try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
