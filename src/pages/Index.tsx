@@ -25,6 +25,16 @@ const Index = () => {
     const [selectedEndpoint, setSelectedEndpoint] = useState<any>(null);
     const [selectedMode, setSelectedMode] = useState<'manual' | 'import' | null>(null);
 
+    // Reset function for Quick Testing state
+    const resetQuickTestingState = () => {
+        setResponse(null);
+        setLoading(false);
+        setValidationRules([]);
+        setRequestConfig(null);
+        setExecutionResult(null);
+        setSelectedEndpoint(null);
+    };
+
     // Helper function to get nested values from objects
     const getNestedValue = (obj: any, path: string): any => {
         return path.split('.').reduce((current, key) => current?.[key], obj);
@@ -122,35 +132,47 @@ const Index = () => {
                                 ? `Status code ${apiResponse.status} matches expected ${rule.expectedValue}`
                                 : `Status code ${apiResponse.status} does not match expected ${rule.expectedValue}`;
                             break;
-                        case 'header':
-                            const headerValue = apiResponse.headers[rule.field!];
-                            result = headerValue === rule.expectedValue ? 'pass' : 'fail';
-                            message = result === 'pass'
-                                ? `Header "${rule.field}" has expected value`
-                                : `Header "${rule.field}" value "${headerValue}" does not match expected "${rule.expectedValue}"`;
-                            break;
-                        case 'body':
                         case 'value':
-                            const data = JSON.stringify(apiResponse.data);
-                            result = data.includes(rule.expectedValue!) ? 'pass' : 'fail';
-                            message = result === 'pass'
-                                ? `Response contains expected value "${rule.expectedValue}"`
-                                : `Response does not contain expected value "${rule.expectedValue}"`;
+                            const actualValue = getNestedValue(apiResponse.data, rule.field || '');
+                            const expectedValue = rule.expectedValue;
+                            
+                            // Handle boolean conversion
+                            let convertedExpected: any = expectedValue;
+                            if (expectedValue === 'true') convertedExpected = true;
+                            if (expectedValue === 'false') convertedExpected = false;
+                            
+                            const valueMatches = actualValue == convertedExpected;
+                            result = valueMatches ? 'pass' : 'fail';
+                            message = valueMatches
+                                ? `${rule.field} equals ${expectedValue}`
+                                : `${rule.field} is ${JSON.stringify(actualValue)}, expected ${expectedValue}`;
                             break;
-                        case 'exists':
-                            const exists = rule.field ? getNestedValue(apiResponse.data, rule.field) !== undefined : false;
+                        case 'existence':
+                            const value = getNestedValue(apiResponse.data, rule.field || '');
+                            const condition = rule.condition as any;
+                            
+                            let exists = false;
+                            switch (condition) {
+                                case 'is_empty':
+                                    exists = value === '' || value === null || value === undefined;
+                                    break;
+                                case 'is_not_empty':
+                                    exists = value !== '' && value !== null && value !== undefined;
+                                    break;
+                                case 'is_null':
+                                    exists = value === null;
+                                    break;
+                                case 'is_not_null':
+                                    exists = value !== null;
+                                    break;
+                                default:
+                                    exists = value !== undefined && value !== null;
+                            }
+                            
                             result = exists ? 'pass' : 'fail';
-                            message = result === 'pass'
-                                ? `Field "${rule.field}" exists in response`
-                                : `Field "${rule.field}" does not exist in response`;
-                            break;
-                        case 'responseTime':
-                            const responseTime = Date.now() - apiResponse.responseTime;
-                            const expectedTime = parseInt(rule.expectedValue!);
-                            result = responseTime <= expectedTime ? 'pass' : 'fail';
-                            message = result === 'pass'
-                                ? `Response time ${responseTime}ms is within expected ${expectedTime}ms`
-                                : `Response time ${responseTime}ms exceeds expected ${expectedTime}ms`;
+                            message = exists
+                                ? `${rule.field} ${condition?.replace('_', ' ')}`
+                                : `${rule.field} does not ${condition?.replace('_', ' ')}`;
                             break;
                     }
                 } catch (error) {
@@ -273,6 +295,9 @@ const Index = () => {
                                     </div>
                                     <Button
                                         onClick={() => {
+                                            if (selectedMode !== 'manual') {
+                                                resetQuickTestingState();
+                                            }
                                             setSelectedMode('manual');
                                             setTimeout(() => {
                                                 const testingSection = document.getElementById('testing-interface');
@@ -330,6 +355,9 @@ const Index = () => {
                                     </div>
                                     <Button
                                         onClick={() => {
+                                            if (selectedMode !== 'import') {
+                                                resetQuickTestingState();
+                                            }
                                             setSelectedMode('import');
                                             setIsImportOpen(true);
                                             setTimeout(() => {
@@ -360,6 +388,8 @@ const Index = () => {
                                     <span>✨Go fast. Go Smart. Go API</span>
                                     <span>•</span>
                                     <span>🚀Start testing instantly</span>
+                                    <span>•</span>
+                                    <span>Developed by 🚀 GETS (Group Engineering Testing Services)</span>
 
                                 </div>
                             </div>

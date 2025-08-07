@@ -5,11 +5,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronUp, GitBranch } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateTestCode } from '@/utils/testCodeGenerator';
+import { BDDCodeGenerator } from '@/utils/bddCodeGenerator';
 import JSZip from 'jszip';
 import { isFeatureEnabled } from '@/config';
+import { ComingSoon } from '@/components/ui/coming-soon';
 
 interface Endpoint {
   id: string;
@@ -31,6 +34,18 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
     return null;
   }
 
+  // Check if Bitbucket integration UI is enabled
+  if (!isFeatureEnabled('enableBitbucketIntegration')) {
+    return (
+      <ComingSoon 
+        title="Bitbucket Integration"
+        description="Push your test code directly to Bitbucket repositories"
+        featureName="Bitbucket Coming Soon"
+        variant="compact"
+      />
+    );
+  }
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -42,7 +57,7 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
     folderPath: 'src/test/java',
     username: '',
     password: '',
-    codeFormat: (isFeatureEnabled('standardCodeGeneration') ? 'cucumber' : (isFeatureEnabled('karateFramework') ? 'karate' : 'cucumber')) as 'karate' | 'cucumber'
+    codeFormat: 'ocbc' as 'ocbc' | 'cucumber' | 'karate'
   });
 
   const handlePushToBitbucket = async () => {
@@ -65,18 +80,38 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
       // Generate test code for all endpoints
       const testFiles = [];
       
-      for (const endpoint of endpoints) {
-        const config = {
+      if (bitbucketConfig.codeFormat === 'ocbc') {
+        // Use BDD code generator for OCBC format
+        const bddGenerator = new BDDCodeGenerator();
+        const bddEndpoints = endpoints.map(endpoint => ({
           method: endpoint.method,
-          url: endpoint.url,
+          path: endpoint.url,
+          name: endpoint.name,
           headers: endpoint.headers || {},
-          body: endpoint.body,
-          expectedStatus: 200,
-          validationRules: []
-        };
+          body: endpoint.body
+        }));
+        
+        const bddCode = bddGenerator.generateCode(bddEndpoints);
+        testFiles.push(
+          ...bddCode.featureFiles,
+          ...bddCode.stepDefinitions,
+          ...bddCode.serviceClasses
+        );
+      } else {
+        // Use standard test code generator for other formats
+        for (const endpoint of endpoints) {
+          const config = {
+            method: endpoint.method,
+            url: endpoint.url,
+            headers: endpoint.headers || {},
+            body: endpoint.body,
+            expectedStatus: 200,
+            validationRules: []
+          };
 
-        const generatedCode = generateTestCode(bitbucketConfig.codeFormat, config);
-        testFiles.push(...generatedCode.files);
+          const generatedCode = generateTestCode(bitbucketConfig.codeFormat as 'cucumber' | 'karate', config);
+          testFiles.push(...generatedCode.files);
+        }
       }
 
       // Create file structure and push to Bitbucket
@@ -244,7 +279,7 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
 
             <div className="space-y-2">
               <Label>Code Format</Label>
-              <Select value={bitbucketConfig.codeFormat} onValueChange={(value: 'karate' | 'cucumber') => setBitbucketConfig(prev => ({ ...prev, codeFormat: value }))}>
+              <Select value={bitbucketConfig.codeFormat} onValueChange={(value: 'karate' | 'cucumber' | 'ocbc') => setBitbucketConfig(prev => ({ ...prev, codeFormat: value }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -256,14 +291,14 @@ export const BitbucketIntegration: React.FC<BitbucketIntegrationProps> = ({ endp
                     <SelectItem value="karate">Karate DSL</SelectItem>
                   )}
                   {isFeatureEnabled('bddCodeGeneration') && (
-                    <SelectItem value="bdd">BDD Framework</SelectItem>
+                    <SelectItem value="ocbc">OCBC Test Framework</SelectItem>
                   )}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="text-sm text-muted-foreground">
-              Will generate {bitbucketConfig.codeFormat === 'karate' ? 'Karate feature files' : 'Cucumber features and Java step definitions'} for {endpoints.length} endpoint{endpoints.length !== 1 ? 's' : ''}
+              Will generate {bitbucketConfig.codeFormat === 'karate' ? 'Karate feature files' : bitbucketConfig.codeFormat === 'ocbc' ? 'OCBC test framework code with embedded POJOs' : 'Cucumber features and Java step definitions'} for {endpoints.length} endpoint{endpoints.length !== 1 ? 's' : ''}
               {isFeatureEnabled('standardCodeGeneration') && isFeatureEnabled('karateFramework') && isFeatureEnabled('bddCodeGeneration') && (
                 <span className="block mt-1 text-xs text-blue-600">
                   All 3 code generation options available

@@ -2,7 +2,7 @@ import {getBDDConfig} from '@/config';
 
 // BDD Framework specific configuration
 export interface BDDConfig {
-    framework: 'cucumber' | 'karate';
+    framework: 'ocbc' | 'cucumber' | 'karate';
     language: 'java' | 'kotlin';
     basePackage: string;
     useLombok: boolean;
@@ -70,7 +70,7 @@ export class BDDCodeGenerator {
             result.featureFiles.push(...endpointCode.featureFiles);
             result.stepDefinitions.push(...endpointCode.stepDefinitions);
             result.serviceClasses.push(...endpointCode.serviceClasses);
-            result.pojos.push(...endpointCode.pojos);
+            // POJOs are now embedded in service classes, so we don't add them separately
         }
 
         return result;
@@ -84,19 +84,45 @@ export class BDDCodeGenerator {
             featureFiles: [this.generateFeatureFile(endpoint, featureName)],
             stepDefinitions: [this.generateStepDefinitions(endpoint, className)],
             serviceClasses: [this.generateServiceClass(endpoint, className)],
-            pojos: this.generatePOJOs(endpoint, className),
+            pojos: [], // POJOs are now embedded in service classes
         };
     }
 
     private generateClassName(name: string): string {
-        return name
-            .split(/[-_\s]/)
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        // Remove numeric suffixes and clean the name
+        let cleanedName = name
+            .replace(/\d+$/, '') // Remove trailing numbers
+            .replace(/^\d+/, '') // Remove leading numbers
+            .replace(/[-_\s]+/g, ' ') // Replace multiple separators with space
+            .trim();
+        
+        // If name is empty after cleaning, use a default
+        if (!cleanedName) {
+            cleanedName = 'ApiEndpoint';
+        }
+        
+        // Convert to PascalCase
+        return cleanedName
+            .split(/\s+/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
             .join('');
     }
 
     private generateFeatureName(name: string): string {
-        return name.toLowerCase().replace(/[-_\s]/g, '_');
+        // Remove numeric suffixes and clean the name
+        let cleanedName = name
+            .replace(/\d+$/, '') // Remove trailing numbers
+            .replace(/^\d+/, '') // Remove leading numbers
+            .replace(/[-_\s]+/g, '_') // Replace multiple separators with underscore
+            .toLowerCase()
+            .trim();
+        
+        // If name is empty after cleaning, use a default
+        if (!cleanedName) {
+            cleanedName = 'api_endpoint';
+        }
+        
+        return cleanedName;
     }
 
     private generateFeatureFile(endpoint: Endpoint, featureName: string) {
@@ -106,11 +132,11 @@ export class BDDCodeGenerator {
         const resource = this.getResourceFromPath(path);
         const action = this.getActionFromMethod(method);
 
-        // Use OCBC enterprise framework by default
-        return this.generateEnterpriseFeatureFile(endpoint, featureName, description, method, resource, action);
+        // Use OCBC enterprise framework
+        return this.generateOCBCFeatureFile(endpoint, featureName, description, method, resource, action);
     }
 
-    private generateEnterpriseFeatureFile(endpoint: Endpoint, featureName: string, description: string, method: string, resource: string, action: string) {
+    private generateOCBCFeatureFile(endpoint: Endpoint, featureName: string, description: string, method: string, resource: string, action: string) {
         const responseData = endpoint.actualResponse?.data || endpoint.responseBody;
         const hasResponseData = responseData && Object.keys(responseData).length > 0;
         const hasValidationRules = endpoint.validationRules && endpoint.validationRules.length > 0;
@@ -120,7 +146,7 @@ export class BDDCodeGenerator {
         
         let content = `Feature: ${description}
 
-  @${method.toLowerCase()} @${this.getTagFromPath(endpoint.path)}
+  @${method.toLowerCase()} @${this.getTagFromPath(endpoint.path)} @ocbc
   Scenario Outline: Successfully ${action} ${resource} - Positive
     Given I prepare a valid ${resource} ${action} payload
     When I send a ${method} request for ${resource.toLowerCase().replace(/\s+/g, '_')}
@@ -132,7 +158,7 @@ ${this.generateFeatureValidationSteps(endpoint)}
 
         // Add negative scenario
         content += `
-  @${method.toLowerCase()} @${this.getTagFromPath(endpoint.path)} @negative
+  @${method.toLowerCase()} @${this.getTagFromPath(endpoint.path)} @negative @ocbc
   Scenario: Fail to ${action} ${resource} with invalid data
     Given I prepare an invalid ${resource} ${action} payload
     When I send a ${method} request for ${resource.toLowerCase().replace(/\s+/g, '_')}
@@ -153,11 +179,11 @@ ${this.generateFeatureValidationSteps(endpoint)}
         const responseClass = `${className}Response`;
         const serviceClass = `${className}Service`;
 
-        // Use OCBC enterprise framework by default
-        return this.generateEnterpriseStepDefinitions(endpoint, className, method, resource, requestClass, responseClass, serviceClass);
+        // Use OCBC enterprise framework
+        return this.generateOCBCStepDefinitions(endpoint, className, method, resource, requestClass, responseClass, serviceClass);
     }
 
-    private generateEnterpriseStepDefinitions(endpoint: Endpoint, className: string, method: string, resource: string, requestClass: string, responseClass: string, serviceClass: string) {
+    private generateOCBCStepDefinitions(endpoint: Endpoint, className: string, method: string, resource: string, requestClass: string, responseClass: string, serviceClass: string) {
         const resourceMethod = resource.toLowerCase().replace(/\s+/g, '_');
         const hasHeaders = endpoint.headers && Object.keys(endpoint.headers).length > 0;
         const headersMap = hasHeaders ? this.generateHeadersMap(endpoint.headers) : 'null';
@@ -172,8 +198,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import ${this.config.basePackage}.service.${serviceClass};
-import ${this.config.basePackage}.model.${requestClass};
-import ${this.config.basePackage}.model.${responseClass};
+import ${this.config.basePackage}.service.${serviceClass}.${requestClass};
+import ${this.config.basePackage}.service.${serviceClass}.${responseClass};
 
 public class ${className}Steps {
 
@@ -231,13 +257,23 @@ public class ${className}Steps {
         const requestClass = `${className}Request`;
         const responseClass = `${className}Response`;
 
-        // Use OCBC enterprise framework by default
-        return this.generateEnterpriseServiceClass(endpoint, className, method, resource, requestClass, responseClass);
+        // Use OCBC enterprise framework with embedded POJOs
+        return this.generateOCBCServiceClass(endpoint, className, method, resource, requestClass, responseClass);
     }
 
-    private generateEnterpriseServiceClass(endpoint: Endpoint, className: string, method: string, resource: string, requestClass: string, responseClass: string) {
+    private generateOCBCServiceClass(endpoint: Endpoint, className: string, method: string, resource: string, requestClass: string, responseClass: string) {
         const hasHeaders = endpoint.headers && Object.keys(endpoint.headers).length > 0;
         const headersMap = hasHeaders ? this.generateHeadersMap(endpoint.headers) : 'null';
+        
+        // Generate embedded POJOs
+        const requestData = endpoint.requestBody ||
+            (endpoint.actualResponse ? this.extractRequestDataFromResponse(endpoint) : this.generateDefaultRequestFields(endpoint));
+        const responseData = endpoint.actualResponse?.data || endpoint.responseBody;
+        
+        const embeddedRequestPOJO = requestData || endpoint.method.toUpperCase() !== 'GET' ? 
+            this.generateEmbeddedPOJOClass(requestClass, requestData, true) : '';
+        const embeddedResponsePOJO = responseData ? 
+            this.generateEmbeddedPOJOClass(responseClass, responseData, false) : '';
         
         const content = `package ${this.config.basePackage}.service;
 
@@ -245,15 +281,18 @@ import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import io.restassured.http.Headers;
 import io.restassured.http.Header;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ${this.config.basePackage}.model.${requestClass};
-import ${this.config.basePackage}.model.${responseClass};
 import java.net.URL;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.Map;
+import java.util.Map;${this.config.useLombok ? `
+import lombok.Data;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;` : ''}
 
 public class ${className}Service extends BaseRestService {
 
@@ -323,6 +362,10 @@ public class ${className}Service extends BaseRestService {
         
         return requestSpec.when().${method.toLowerCase()}(endPointURL);
     }
+
+    // Embedded POJO Classes
+${embeddedRequestPOJO}
+${embeddedResponsePOJO}
 }`;
 
         return {
@@ -331,41 +374,48 @@ public class ${className}Service extends BaseRestService {
         };
     }
 
+    private generateEmbeddedPOJOClass(className: string, data: any, isRequest: boolean): string {
+        if (!data) return '';
+        
+        const fields = this.extractFields(data);
+        if (fields.length === 0) return '';
+
+        const lombokImports = this.config.useLombok ? `
+import lombok.Data;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;` : '';
+
+        const lombokAnnotations = this.config.useLombok ? `
+@Data
+${isRequest ? '@Builder' : ''}
+@NoArgsConstructor
+@AllArgsConstructor` : '';
+
+        const fieldsCode = fields.map(field => {
+            const fieldType = this.getJavaType(field.type);
+            const fieldName = field.name;
+            const annotation = this.config.useLombok ? '' : `
+        @JsonProperty("${fieldName}")
+        private ${fieldType} ${this.camelCase(fieldName)};`;
+
+            return this.config.useLombok ?
+                `        private ${fieldType} ${this.camelCase(fieldName)};` :
+                annotation;
+        }).join('\n');
+
+        const gettersSetters = this.config.useLombok ? '' : this.generateGettersSetters(fields);
+
+        return `
+
+    public static class ${className} {${lombokAnnotations}
+${fieldsCode}${gettersSetters}
+    }`;
+    }
+
     private generatePOJOs(endpoint: Endpoint, className: string) {
-        const pojos = [];
-
-        // Use real request data if available, otherwise fall back to sample data
-        const requestData = endpoint.requestBody ||
-            (endpoint.actualResponse ? this.extractRequestDataFromResponse(endpoint) : this.generateDefaultRequestFields(endpoint));
-
-        // Generate Request POJO
-        if (requestData || endpoint.method.toUpperCase() !== 'GET') {
-            const requestContent = this.generatePOJOClass(
-                `${className}Request`,
-                requestData,
-                true
-            );
-            pojos.push({
-                name: `${className}Request.java`,
-                content: requestContent,
-            });
-        }
-
-        // Use real response data if available
-        const responseData = endpoint.actualResponse?.data || endpoint.responseBody;
-        if (responseData) {
-            const responseContent = this.generatePOJOClass(
-                `${className}Response`,
-                responseData,
-                false
-            );
-            pojos.push({
-                name: `${className}Response.java`,
-                content: responseContent,
-            });
-        }
-
-        return pojos;
+        // POJOs are now embedded in service classes, so return empty array
+        return [];
     }
 
     private extractRequestDataFromResponse(endpoint: Endpoint): any {
@@ -406,43 +456,6 @@ public class ${className}Service extends BaseRestService {
         return null;
     }
 
-    private generatePOJOClass(className: string, data: any, isRequest: boolean) {
-        const fields = this.extractFields(data);
-        const lombokImports = this.config.useLombok ? `
-import lombok.Data;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;` : '';
-
-        const lombokAnnotations = this.config.useLombok ? `
-@Data
-${isRequest ? '@Builder' : ''}
-@NoArgsConstructor
-@AllArgsConstructor` : '';
-
-        const fieldsCode = fields.map(field => {
-            const fieldType = this.getJavaType(field.type);
-            const fieldName = field.name;
-            const annotation = this.config.useLombok ? '' : `
-    @JsonProperty("${fieldName}")
-    private ${fieldType} ${this.camelCase(fieldName)};`;
-
-            return this.config.useLombok ?
-                `    private ${fieldType} ${this.camelCase(fieldName)};` :
-                annotation;
-        }).join('\n');
-
-        const gettersSetters = this.config.useLombok ? '' : this.generateGettersSetters(fields);
-
-        return `package ${this.config.basePackage}.model;
-
-import com.fasterxml.jackson.annotation.JsonProperty;${lombokImports}
-
-public class ${className} {${lombokAnnotations}
-${fieldsCode}${gettersSetters}
-}`;
-    }
-
     private extractFields(data: any): Array<{ name: string; type: string }> {
         if (!data || typeof data !== 'object') {
             return [];
@@ -478,13 +491,13 @@ ${fieldsCode}${gettersSetters}
 
             return `
 
-    public ${fieldType} ${getterName}() {
-        return ${fieldName};
-    }
+        public ${fieldType} ${getterName}() {
+            return ${fieldName};
+        }
 
-    public void ${setterName}(${fieldType} ${fieldName}) {
-        this.${fieldName} = ${fieldName};
-    }`;
+        public void ${setterName}(${fieldType} ${fieldName}) {
+            this.${fieldName} = ${fieldName};
+        }`;
         }).join('');
     }
 

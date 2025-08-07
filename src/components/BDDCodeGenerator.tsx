@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,11 +21,11 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
   const [generatedCode, setGeneratedCode] = useState<GeneratedCode | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [config, setConfig] = useState({
-    framework: 'cucumber' as const,
-    language: 'java',
-    basePackage: 'com.example.api',
+    framework: 'ocbc' as const,
+    language: 'java' as const,
+    basePackage: 'com.ocbc.api',
     useLombok: true,
-    generatePOJOs: true,
+    generatePOJOs: false, // POJOs are embedded in service classes
     generateServiceClasses: true,
     generateStepDefinitions: true,
     generateFeatureFiles: true,
@@ -49,7 +48,7 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
               Feature Disabled
             </Badge>
             <p className="text-muted-foreground">
-              BDD code generation is currently disabled. Enable it in the configuration to generate Cucumber/Karate test code.
+              BDD code generation is currently disabled. Enable it in the configuration to generate OCBC test framework code.
             </p>
           </div>
         </CardContent>
@@ -74,13 +73,13 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
       setGeneratedCode(code);
       
       toast({
-        title: "BDD Code Generated",
-        description: `Generated ${code.featureFiles.length} feature files, ${code.stepDefinitions.length} step definitions, ${code.serviceClasses.length} service classes, and ${code.pojos.length} POJOs.`,
+        title: "OCBC BDD Code Generated",
+        description: `Generated ${code.featureFiles.length} feature files, ${code.stepDefinitions.length} step definitions, ${code.serviceClasses.length} service classes with embedded POJOs.`,
       });
     } catch (error) {
       toast({
         title: "Generation Failed",
-        description: "Failed to generate BDD code. Please try again.",
+        description: "Failed to generate OCBC BDD code. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -95,7 +94,6 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
       ...generatedCode.featureFiles,
       ...generatedCode.stepDefinitions,
       ...generatedCode.serviceClasses,
-      ...generatedCode.pojos,
     ];
 
     const zip = new JSZip();
@@ -110,14 +108,9 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
       zip.file(`src/test/java/${config.basePackage.replace(/\./g, '/')}/steps/${file.name}`, file.content);
     });
 
-    // Add service classes to service folder
+    // Add service classes to service folder (POJOs are embedded)
     generatedCode.serviceClasses.forEach(file => {
       zip.file(`src/main/java/${config.basePackage.replace(/\./g, '/')}/service/${file.name}`, file.content);
-    });
-
-    // Add POJOs to model folder
-    generatedCode.pojos.forEach(file => {
-      zip.file(`src/main/java/${config.basePackage.replace(/\./g, '/')}/model/${file.name}`, file.content);
     });
 
     // Generate and download
@@ -125,7 +118,7 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
       const url = URL.createObjectURL(content);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'bdd-framework-code.zip';
+      a.download = 'ocbc-bdd-framework-code.zip';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -134,7 +127,7 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
 
     toast({
       title: "Download Complete",
-      description: "BDD framework code has been downloaded as a ZIP file.",
+      description: "OCBC BDD framework code has been downloaded as a ZIP file.",
     });
   };
 
@@ -162,6 +155,7 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="ocbc">OCBC Test Framework</SelectItem>
                   <SelectItem value="cucumber">Cucumber</SelectItem>
                 </SelectContent>
               </Select>
@@ -186,60 +180,8 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
                 id="basePackage"
                 value={config.basePackage}
                 onChange={(e) => setConfig({ ...config, basePackage: e.target.value })}
-                placeholder="com.example.api"
+                placeholder="com.ocbc.api"
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="useLombok">Use Lombok</Label>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="useLombok"
-                  checked={config.useLombok}
-                  onCheckedChange={(checked) => setConfig({ ...config, useLombok: checked as boolean })}
-                />
-                <Label htmlFor="useLombok" className="text-sm">Generate Lombok annotations</Label>
-              </div>
-            </div>
-
-
-          </div>
-
-          <div className="space-y-2">
-            <Label>Generate Components</Label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="generateFeatureFiles"
-                  checked={config.generateFeatureFiles}
-                  onCheckedChange={(checked) => setConfig({ ...config, generateFeatureFiles: checked as boolean })}
-                />
-                <Label htmlFor="generateFeatureFiles" className="text-sm">Feature Files</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="generateStepDefinitions"
-                  checked={config.generateStepDefinitions}
-                  onCheckedChange={(checked) => setConfig({ ...config, generateStepDefinitions: checked as boolean })}
-                />
-                <Label htmlFor="generateStepDefinitions" className="text-sm">Step Definitions</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="generateServiceClasses"
-                  checked={config.generateServiceClasses}
-                  onCheckedChange={(checked) => setConfig({ ...config, generateServiceClasses: checked as boolean })}
-                />
-                <Label htmlFor="generateServiceClasses" className="text-sm">Service Classes</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="generatePOJOs"
-                  checked={config.generatePOJOs}
-                  onCheckedChange={(checked) => setConfig({ ...config, generatePOJOs: checked as boolean })}
-                />
-                <Label htmlFor="generatePOJOs" className="text-sm">POJOs</Label>
-              </div>
             </div>
           </div>
         </div>
@@ -276,7 +218,7 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
             </div>
 
             <Tabs defaultValue="features" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="features" className="flex items-center gap-1">
                   <FileText className="h-3 w-3" />
                   Features ({generatedCode.featureFiles.length})
@@ -288,10 +230,6 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
                 <TabsTrigger value="services" className="flex items-center gap-1">
                   <Layers className="h-3 w-3" />
                   Services ({generatedCode.serviceClasses.length})
-                </TabsTrigger>
-                <TabsTrigger value="pojos" className="flex items-center gap-1">
-                  <Database className="h-3 w-3" />
-                  POJOs ({generatedCode.pojos.length})
                 </TabsTrigger>
               </TabsList>
 
@@ -338,25 +276,6 @@ export const BDDCodeGenerator: React.FC<BDDCodeGeneratorProps> = ({ endpoints })
                   <ScrollArea className="h-80 w-full">
                     <div className="p-4 space-y-4">
                       {generatedCode.serviceClasses.map((file, index) => (
-                        <div key={index} className="space-y-2">
-                          <Badge variant="outline" className="text-xs">{file.name}</Badge>
-                          <div className="bg-muted rounded-md overflow-hidden">
-                            <pre className="text-xs p-4 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words max-w-full font-mono">
-                              <code className="block">{file.content}</code>
-                            </pre>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="pojos" className="mt-4">
-                <div className="border rounded-md overflow-hidden">
-                  <ScrollArea className="h-80 w-full">
-                    <div className="p-4 space-y-4">
-                      {generatedCode.pojos.map((file, index) => (
                         <div key={index} className="space-y-2">
                           <Badge variant="outline" className="text-xs">{file.name}</Badge>
                           <div className="bg-muted rounded-md overflow-hidden">

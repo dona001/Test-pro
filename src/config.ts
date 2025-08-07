@@ -20,7 +20,12 @@ export const config = {
         useAllureReports: false, // Toggle between Extent (false) and Allure (true)
         valueSelector: false, // Enable/disable dynamic value selection dropdown
         bddCodeGeneration: true, // BDD framework code generation
-        karateFramework: false // Karate framework support
+        karateFramework: false, // Karate framework support
+        
+        // UI Section Feature Flags
+        enableJiraIntegration: false, // Control Jira Integration UI visibility
+        enableBitbucketIntegration: false, // Control Bitbucket Integration UI visibility
+        enableCodeGeneration: true, // Control Generated Code Section UI visibility
     },
 
     // External service configurations (optional)
@@ -44,13 +49,13 @@ export const config = {
         enableAnimations: true
     },
 
-    // BDD Framework Configuration
+    // OCBC BDD Framework Configuration
     bdd: {
-        framework: 'cucumber', // 'cucumber' | 'karate'
+        framework: 'ocbc', // 'ocbc' | 'cucumber' | 'karate'
         language: 'java', // 'java' | 'kotlin'
-        basePackage: 'com.example.api',
-        useLombok: true,
-        generatePOJOs: true,
+        basePackage: 'com.ocbc.api',
+        useLombok: true, // OCBC uses Lombok for embedded POJOs
+        generatePOJOs: false, // POJOs are embedded in service classes
         generateServiceClasses: true,
         generateStepDefinitions: true,
         generateFeatureFiles: true,

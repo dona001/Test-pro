@@ -22,7 +22,7 @@ interface Endpoint {
 
 interface ExecutionResult {
     endpoint: Endpoint;
-    status: 'success' | 'error' | 'pending';
+    status: 'success' | 'failed' | 'pending';
     response?: {
         status: number;
         data: any;
@@ -69,10 +69,21 @@ export class ExtentReporter {
             const startTime = Date.now();
             const endTime = startTime + (result.response?.time || 1000);
 
+            // Determine final status considering both API response and validation results
+            let finalStatus = this.mapStatus(result.status);
+            
+            // If API call was successful but validations failed, mark as failed
+            if (result.status === 'success' && result.validationResults && result.validationResults.length > 0) {
+                const failedValidations = result.validationResults.filter(v => v.result === 'fail');
+                if (failedValidations.length > 0) {
+                    finalStatus = 'fail';
+                }
+            }
+
             const extentResult: ExtentTestResult = {
                 name: result.endpoint.name,
                 description: result.endpoint.description || `Test for ${result.endpoint.method} ${result.endpoint.url}`,
-                status: this.mapStatus(result.status),
+                status: finalStatus,
                 startTime,
                 endTime,
                 duration: result.response?.time || 0,
@@ -107,6 +118,7 @@ export class ExtentReporter {
         switch (status) {
             case 'success':
                 return 'pass';
+            case 'failed':
             case 'error':
                 return 'fail';
             case 'pending':

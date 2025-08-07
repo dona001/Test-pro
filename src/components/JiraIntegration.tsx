@@ -8,6 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { isFeatureEnabled } from '@/config';
+import { ComingSoon } from '@/components/ui/coming-soon';
 
 interface ExecutionResult {
   endpoint: any;
@@ -27,6 +28,18 @@ export const JiraIntegration: React.FC<JiraIntegrationProps> = ({ results, colle
   // Check if Jira integration is enabled
   if (!isFeatureEnabled('jiraIntegration')) {
     return null;
+  }
+
+  // Check if Jira integration UI is enabled
+  if (!isFeatureEnabled('enableJiraIntegration')) {
+    return (
+      <ComingSoon 
+        title="Jira Integration"
+        description="Sync your test results directly to Jira issues"
+        featureName="Jira Coming Soon"
+        variant="compact"
+      />
+    );
   }
 
   const [isExpanded, setIsExpanded] = useState(false);

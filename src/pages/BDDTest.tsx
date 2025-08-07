@@ -11,16 +11,16 @@ const BDDTest: React.FC = () => {
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              BDD Framework Code Generation
+              OCBC BDD Framework Code Generation
             </h1>
             <p className="text-gray-600">
-              Generate Cucumber/Karate test code for your API endpoints. This feature creates:
+              Generate OCBC test framework code for your API endpoints. This feature creates:
             </p>
             <ul className="list-disc list-inside text-gray-600 mt-2 space-y-1">
-              <li>Feature files with Gherkin syntax</li>
-              <li>Step definitions in Java/Kotlin</li>
-              <li>Service classes for API interactions</li>
-              <li>POJO models with Lombok annotations</li>
+              <li>Feature files with Gherkin syntax and OCBC tags</li>
+              <li>Step definitions in Java (OCBC standard)</li>
+              <li>Service classes with embedded POJO models</li>
+              <li>Enterprise-grade test structure aligned with OCBC standards</li>
             </ul>
           </div>
 

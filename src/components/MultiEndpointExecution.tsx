@@ -56,6 +56,7 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
   const [selectedResponseEndpoint, setSelectedResponseEndpoint] = useState<string | null>(null);
   const [endpointResponses, setEndpointResponses] = useState<Record<string, any>>({});
   const [onlySuccessfulTests, setOnlySuccessfulTests] = useState(true);
+  const [applyDefaultValidation, setApplyDefaultValidation] = useState(false);
   const { toast } = useToast();
 
   const handleEndpointSelection = (endpointId: string, checked: boolean) => {
@@ -216,6 +217,21 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
       return;
     }
 
+    // Check if validation rules are required
+    const endpointsWithoutValidation = selectedEndpoints.filter(endpointId => {
+      const validationRules = endpointValidations[endpointId] || [];
+      return validationRules.length === 0;
+    });
+
+    if (endpointsWithoutValidation.length > 0 && !applyDefaultValidation) {
+      toast({
+        title: "Validation rules required",
+        description: "At least one validation rule is required to run the API. Enable 'Apply Default Validation' or add custom validation rules.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsExecuting(true);
     setExecutionResults([]);
     setEndpointResponses({});
@@ -228,7 +244,19 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
       const endpointId = selectedEndpoints[i];
       setExecutionProgress({ current: i + 1, total: selectedEndpoints.length });
       const endpoint = getEffectiveEndpoint(endpointId);
-      const validationRules = endpointValidations[endpointId] || [];
+      let validationRules = endpointValidations[endpointId] || [];
+      
+      // Apply default validation if enabled and no custom validation exists
+      if (validationRules.length === 0 && applyDefaultValidation) {
+        validationRules = [{
+          id: `default-${endpointId}`,
+          type: 'status',
+          field: 'status',
+          expectedValue: '200',
+          result: 'pass',
+          message: 'Default status code validation'
+        }];
+      }
       
       try {
         const startTime = performance.now();
@@ -404,7 +432,7 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
     try {
       toast({
         title: "Generating BDD code...",
-        description: "Creating Cucumber/Karate test code for selected endpoints",
+        description: "Creating OCBC test framework code for selected endpoints",
       });
 
       const selectedEndpointData = endpoints
@@ -592,7 +620,7 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                       Generate Code
                     </Button>
                   )}
-                  {isFeatureEnabled('bddCodeGeneration') && (
+                  {/* {isFeatureEnabled('bddCodeGeneration') && (
                     <Button
                       variant="outline"
                       onClick={handleBDDCodeGeneration}
@@ -602,9 +630,31 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                       <Coffee className="w-4 h-4 mr-1" />
                       Generate BDD
                     </Button>
-                  )}
+                  )} */}
                 </div>
               </div>
+
+              {/* Default Validation Toggle - show when endpoints are selected */}
+              {selectedEndpoints.length > 0 && (
+                <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <ToggleLeft className="w-4 h-4 text-blue-600" />
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      checked={applyDefaultValidation}
+                      onCheckedChange={(checked) => setApplyDefaultValidation(checked as boolean)}
+                      className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                    />
+                    <div>
+                      <label className="text-sm font-medium text-gray-900 cursor-pointer">
+                        Apply Default Validation
+                      </label>
+                      <p className="text-xs text-gray-600">
+                        Automatically adds Status Code = 200 validation to APIs without custom validation rules
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Integration buttons - show after execution */}
               {executionResults.length > 0 && (

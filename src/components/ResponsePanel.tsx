@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Clock, Globe, CheckCircle, AlertCircle, Copy, ExternalLink, GitBranch } from 'lucide-react';
 import { ResponseValidation } from './ResponseValidation';
 import { useToast } from '@/hooks/use-toast';
-import { TestCodeGenerator } from './TestCodeGenerator';
 import { BDDCodeGenerator } from './BDDCodeGenerator';
 import { ValidationRule } from '@/types/validation';
 import { JiraIntegration } from './JiraIntegration';
@@ -17,6 +16,7 @@ import { isFeatureEnabled } from '@/config';
 import { CORSErrorDisplay } from './CORSErrorDisplay';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ComingSoon } from '@/components/ui/coming-soon';
 
 interface ApiResponse {
   status: number;
@@ -68,17 +68,41 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
 
 
   const validateResponseData = (response: any): boolean => {
-    // Handle wrapper response structure
+    console.log('🔍 validateResponseData - Input response:', response);
+    console.log('🔍 validateResponseData - Response type:', typeof response);
+    
     if (response && typeof response === 'object') {
+      console.log('✅ Response is an object');
+      console.log('🔍 Checking for wrapper response structure...');
+      console.log('🔍 response.success:', response.success);
+      console.log('🔍 response.data:', response.data);
+      console.log('🔍 response.status:', response.status);
+      
       // If it's a wrapper response (has success, status, data properties)
       if (response.success !== undefined && response.data !== undefined) {
+        console.log('✅ Wrapper response structure detected');
+        console.log('🔍 Data content:', response.data);
+        console.log('🔍 Data type:', typeof response.data);
+        console.log('🔍 Data is null?', response.data === null);
+        console.log('🔍 Data is undefined?', response.data === undefined);
         return true;
       }
+      
       // If it's a direct API response (has status, data properties)
       if (response.status !== undefined && response.data !== undefined) {
+        console.log('✅ Direct API response structure detected');
+        console.log('🔍 Data content:', response.data);
         return true;
       }
+      
+      console.log('❌ No valid response structure found');
+      console.log('🔍 Available properties:', Object.keys(response));
+    } else {
+      console.log('❌ Response is not an object or is null/undefined');
+      console.log('🔍 Response value:', response);
     }
+    
+    console.log('❌ validateResponseData returning false');
     return false;
   };
 
@@ -99,9 +123,31 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
   };
 
   const copyResponseBody = () => {
-    if (response && response.data) {
-      const responseText = formatJson(response.data);
-      copyToClipboard(responseText, "Response body");
+    if (response) {
+      let responseData;
+      
+      // Handle both wrapper and direct response structures
+      if (response.success !== undefined && response.data !== undefined) {
+        // Wrapper response structure
+        responseData = response.data;
+      } else if (response.data !== undefined) {
+        // Direct API response structure
+        responseData = response.data;
+      } else {
+        // Fallback to entire response object
+        responseData = response;
+      }
+      
+      if (responseData) {
+        const responseText = formatJson(responseData);
+        copyToClipboard(responseText, "Response body");
+      } else {
+        toast({
+          title: "No response data",
+          description: "Cannot copy response body due to CORS restrictions or network errors",
+          variant: "destructive",
+        });
+      }
     } else {
       toast({
         title: "No response data",
@@ -314,29 +360,7 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
         </Collapsible>
       )}
 
-      {/* Code Generation Panel - Collapsible by default, positioned at the bottom */}
-      {showCodeGen && isFeatureEnabled('standardCodeGeneration') && validationRules && validationRules.length > 0 && (
-        <Collapsible defaultOpen={false} className="p-6">
-          <CollapsibleTrigger asChild>
-            <Button variant="outline" className="w-full flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Test Code Generation
-                <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs">
-                  {validationRules.length}
-                </span>
-              </div>
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-4">
-            <TestCodeGenerator 
-              requestConfig={requestConfig} 
-              validationRules={validationRules as any}
-            />
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+
 
       {/* BDD Code Generation Panel - Collapsible by default, positioned at the bottom */}
       {isFeatureEnabled('bddCodeGeneration') && requestConfig && response && response.status >= 200 && response.status < 300 && validationRules && validationRules.length > 0 && (
@@ -354,17 +378,26 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4">
-            <BDDCodeGenerator 
-              endpoints={[{
-                method: requestConfig.method,
-                path: new URL(requestConfig.url).pathname,
-                name: `${requestConfig.method.toLowerCase()}_${new URL(requestConfig.url).pathname.replace(/\//g, '_').replace(/^_|_$/g, '')}`,
-                description: `${requestConfig.method.toUpperCase()} ${requestConfig.url}`,
-                requestBody: requestConfig.body ? JSON.parse(requestConfig.body) : undefined,
-                responseBody: response?.data,
-                headers: requestConfig.headers || {},
-              }]}
-            />
+            {isFeatureEnabled('enableCodeGeneration') ? (
+              <BDDCodeGenerator 
+                endpoints={[{
+                  method: requestConfig.method,
+                  path: new URL(requestConfig.url).pathname,
+                  name: `${requestConfig.method.toLowerCase()}_${new URL(requestConfig.url).pathname.replace(/\//g, '_').replace(/^_|_$/g, '')}`,
+                  description: `${requestConfig.method.toUpperCase()} ${requestConfig.url}`,
+                  requestBody: requestConfig.body ? JSON.parse(requestConfig.body) : undefined,
+                  responseBody: response?.data,
+                  headers: requestConfig.headers || {},
+                }]}
+              />
+            ) : (
+              <ComingSoon 
+                title="Generate Combined Test Suite"
+                description="Generate comprehensive test suites for your API endpoints"
+                featureName="Test Suite"
+                variant="compact"
+              />
+            )}
           </CollapsibleContent>
         </Collapsible>
       )}
