@@ -122,12 +122,29 @@ export async function parseImportedFile(content: string, filename: string): Prom
 export async function parseSwaggerFromURL(url: string): Promise<ParsedEndpoint[]> {
     try {
         // Use environment-aware proxy URL
-        const proxyUrl = getProxyBase() + encodeURIComponent(url);
+        const proxyUrl = getProxyBase().replace('/api/wrapper', '/api/wrapper');
 
         console.log(`🔄 Fetching Swagger spec via proxy: ${url}`);
         console.log(`🛡️ Using proxy: ${proxyUrl}`);
 
-        const response = await fetch(proxyUrl);
+        // Prepare wrapper payload for POST request
+        const wrapperPayload = {
+            url: url,
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json, application/yaml, text/yaml, */*',
+                'User-Agent': 'API-Tester-Pro/1.0'
+            }
+        };
+
+        const response = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(wrapperPayload),
+        });
+
         if (!response.ok) {
             throw new Error(`Failed to fetch Swagger spec from ${url}. Status: ${response.status}`);
         }
