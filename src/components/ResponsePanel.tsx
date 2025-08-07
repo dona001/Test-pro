@@ -68,55 +68,62 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
 
 
   const validateResponseData = (response: any): boolean => {
-    console.log('🔍 validateResponseData - Input response:', response);
-    console.log('🔍 validateResponseData - Response type:', typeof response);
-    
     if (response && typeof response === 'object') {
-      console.log('✅ Response is an object');
-      console.log('🔍 Checking for wrapper response structure...');
-      console.log('🔍 response.success:', response.success);
-      console.log('🔍 response.data:', response.data);
-      console.log('🔍 response.status:', response.status);
-      
       // If it's a wrapper response (has success, status, data properties)
       if (response.success !== undefined && response.data !== undefined) {
-        console.log('✅ Wrapper response structure detected');
-        console.log('🔍 Data content:', response.data);
-        console.log('🔍 Data type:', typeof response.data);
-        console.log('🔍 Data is null?', response.data === null);
-        console.log('🔍 Data is undefined?', response.data === undefined);
         return true;
       }
       
       // If it's a direct API response (has status, data properties)
       if (response.status !== undefined && response.data !== undefined) {
-        console.log('✅ Direct API response structure detected');
-        console.log('🔍 Data content:', response.data);
         return true;
       }
-      
-      console.log('❌ No valid response structure found');
-      console.log('🔍 Available properties:', Object.keys(response));
-    } else {
-      console.log('❌ Response is not an object or is null/undefined');
-      console.log('🔍 Response value:', response);
     }
     
-    console.log('❌ validateResponseData returning false');
     return false;
   };
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
-      await navigator.clipboard.writeText(text);
-      toast({
-        title: "Copied to clipboard",
-        description: `${type} copied successfully`,
-      });
+      // Try modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        toast({
+          title: "Copied to clipboard",
+          description: `${type} copied successfully`,
+        });
+        return;
+      }
+      
+      // Fallback for older browsers or non-secure contexts
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          toast({
+            title: "Copied to clipboard",
+            description: `${type} copied successfully`,
+          });
+        } else {
+          throw new Error('execCommand failed');
+        }
+      } catch (err) {
+        throw new Error('Copy failed');
+      } finally {
+        document.body.removeChild(textArea);
+      }
     } catch (error) {
       toast({
         title: "Copy failed",
-        description: "Failed to copy to clipboard",
+        description: "Please copy manually or check browser permissions",
         variant: "destructive",
       });
     }
