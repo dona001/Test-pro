@@ -2,6 +2,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Zap } from 'lucide-react';
+import { FeedbackModal } from './FeedbackModal';
 
 export const Header = () => {
   return (
@@ -21,6 +22,7 @@ export const Header = () => {
           </div>
 
           <div className="flex items-center space-x-4">
+            <FeedbackModal currentPage="Quick API Testing" />
             {/*<Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">*/}
             {/*  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>*/}
             {/*  Ready*/}

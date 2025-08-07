@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const https = require('https');
 const config = require('./config/config');
+const pool = require('./config/database');
 
 const app = express();
 const PORT = config.port;
@@ -268,6 +269,76 @@ app.post('/api/wrapper', async (req, res) => {
       status: statusCode,
       timestamp: new Date().toISOString(),
       targetUrl: targetUrl.href,
+    });
+  }
+});
+
+// Feedback API endpoint
+app.post('/api/feedback', async (req, res) => {
+  try {
+    const { lanId, pageLocation, feedback } = req.body;
+
+    // Validate required fields
+    if (!lanId || !feedback) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        message: 'LAN ID and feedback message are required',
+        requiredFields: ['lanId', 'feedback'],
+        optionalFields: ['pageLocation']
+      });
+    }
+
+    // Validate field lengths
+    if (lanId.length > 50) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid LAN ID',
+        message: 'LAN ID must be 50 characters or less'
+      });
+    }
+
+    if (pageLocation && pageLocation.length > 100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid page location',
+        message: 'Page location must be 100 characters or less'
+      });
+    }
+
+    if (feedback.length > 5000) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid feedback',
+        message: 'Feedback message must be 5000 characters or less'
+      });
+    }
+
+    // Insert feedback into database
+    const query = `
+      INSERT INTO user_feedback (lan_id, page_location, feedback)
+      VALUES ($1, $2, $3)
+      RETURNING id, created_at
+    `;
+
+    const result = await pool.query(query, [lanId, pageLocation || null, feedback]);
+
+    console.log(`✅ Feedback submitted: ID ${result.rows[0].id} from ${lanId}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Feedback submitted successfully',
+      feedbackId: result.rows[0].id,
+      createdAt: result.rows[0].created_at
+    });
+
+  } catch (error) {
+    console.error('❌ Feedback submission error:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Database error',
+      message: 'Failed to submit feedback. Please try again later.'
     });
   }
 });

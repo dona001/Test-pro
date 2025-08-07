@@ -1,6 +1,7 @@
 import {useState} from "react";
 import {Package, Zap} from "lucide-react";
 import {Header} from "@/components/Header";
+import {Footer} from "@/components/Footer";
 import {RequestPanel} from "@/components/RequestPanel";
 import {ResponsePanel} from "@/components/ResponsePanel";
 import {SmartImport} from "@/components/SmartImport";
@@ -209,7 +210,7 @@ const Index = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col">
             <Header/>
 
             {/* Enhanced Hero Section */}
@@ -555,6 +556,7 @@ const Index = () => {
                     )}
                 </main>
             )}
+            <Footer />
         </div>
     );
 };
