@@ -1,20 +1,35 @@
 version: '3.8'
 
 services:
-  api-tester-pro:
-    build: .
+  backend:
+    container_name: api-tester-backend
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    working_dir: /app/backend
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"  # Frontend
-      - "${BACKEND_PORT:-3001}:3001"    # Backend proxy
+      - "${BACKEND_PORT:-3001}:3001"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - SERVER_IP=${SERVER_IP:-0.0.0.0}
       - PORT=${BACKEND_PORT:-3001}
-      - FRONTEND_PORT=${FRONTEND_PORT:-3000}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s 
+      start_period: 40s
+
+  frontend:
+    container_name: api-tester-frontend
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    working_dir: /app/frontend
+    ports:
+      - "${FRONTEND_PORT:-8080}:8080"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+    restart: unless-stopped
+    depends_on:
+      - backend

@@ -1,0 +1,24 @@
+# Frontend Dockerfile (Vite React)
+FROM node:18-alpine AS base
+
+WORKDIR /app
+
+# Install frontend dependencies
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm ci
+
+# Copy frontend source
+COPY frontend/ ./frontend/
+
+WORKDIR /app/frontend
+
+# Build (optional for production)
+RUN npm run build
+
+# Expose frontend dev/preview port (vite dev default 8080, preview default 4173)
+EXPOSE 8080
+EXPOSE 4173
+
+# Default command runs Vite dev server; override with preview in production
+CMD ["npm", "run", "dev"]
+
