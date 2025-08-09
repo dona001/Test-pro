@@ -1,7 +1,8 @@
 // Backend Wrapper Integration for Collection Testing
 // All API calls go through the backend wrapper server
+import { getProxyServerUrl } from '@/config/proxy';
 
-const BACKEND_WRAPPER = 'http://localhost:3001/api/wrapper';
+const BACKEND_WRAPPER = `${getProxyServerUrl()}/api/wrapper`;
 
 export async function proxyApiCall(config: {
     method: string;
@@ -71,6 +72,6 @@ export async function proxyApiCall(config: {
             throw new Error(`CORS error: The request was blocked due to CORS policy. Please check if the target API allows cross-origin requests.`);
         }
 
-        throw new Error(`Backend wrapper failed. Please ensure the wrapper server is running on localhost:3001. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(`Backend wrapper failed. Please ensure the wrapper server is running on ${getProxyServerUrl()}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }

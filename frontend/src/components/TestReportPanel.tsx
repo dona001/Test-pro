@@ -14,7 +14,6 @@ import {
   BarChart3,
   ExternalLink
 } from 'lucide-react';
-import { AllureReporter } from '@/utils/allureReporter';
 import { ExtentReporter } from '@/utils/extentReporter';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -70,31 +69,20 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
     return null;
   }
 
-  const [allureReporter] = useState(() => new AllureReporter());
   const [extentReporter] = useState(() => new ExtentReporter());
   const executionTime = format(new Date(), 'PPp');
 
-  // Calculate summary statistics
+  // Calculate summary statistics (treat validation failures as failed tests)
   const totalTests = results.length;
-  const passed = results.filter(r => r.status === 'success' && 
-    (!r.validationResults || r.validationResults.every(v => v.result === 'pass'))).length;
+  const passed = results.filter(r => r.status === 'success' && (!r.validationResults || r.validationResults.every(v => v.result === 'pass'))).length;
   const failed = totalTests - passed;
-  const totalExecutionTime = results.reduce((sum, r) => sum + (r.response?.time || 0), 0);
-
+  const totalExecutionTime = results.reduce((sum, r) => sum + (((r.response as any)?.responseTime ?? r.response?.time ?? 0)), 0);
   // Check which reporting system to use
-  const useAllureReports = isFeatureEnabled('useAllureReports');
+  const useAllureReports = false;
 
   const handleGenerateReport = async () => {
     try {
-      if (useAllureReports) {
-        setIsGenerating('allure');
-        const resultsDir = await allureReporter.generateReport(results, collectionName);
-        
-        toast({
-          title: "Allure Report Generated",
-          description: `Allure report generated successfully. Check downloaded JSON files.`,
-        });
-      } else {
+      {
         setIsGenerating('extent');
         const result = await extentReporter.generateReport(results, collectionName);
         
@@ -115,33 +103,11 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
   };
 
   const handleServeAllureReport = async () => {
-    if (!useAllureReports) {
-      toast({
-        title: "Allure Reports Disabled",
-        description: "Allure reports are currently disabled. Enable them in config to use this feature.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsGenerating('serve');
-      const resultsDir = await allureReporter.generateReport(results, collectionName);
-      const serveCommand = allureReporter.getServeCommand(resultsDir, 8080);
-      
-      toast({
-        title: "Allure Report Server",
-        description: `Run this command to serve the report: ${serveCommand}`,
-      });
-    } catch (error) {
-      toast({
-        title: "Report Generation Failed",
-        description: `Failed to generate Allure report. Please try again.`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(null);
-    }
+    toast({
+      title: "Serve Report Unavailable",
+      description: `Only Extent HTML download is supported now.`,
+      variant: "destructive",
+    });
   };
 
   const handleJiraAttach = () => {
@@ -233,29 +199,33 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
         <div className="space-y-3">
           <h4 className="font-semibold text-gray-900 dark:text-white">Quick Overview</h4>
           <div className="space-y-2 max-h-40 overflow-y-auto overflow-x-auto">
-            {results.map((result, index) => (
-              <div key={result.endpoint.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  {getStatusIcon(result.status)}
-                  <div>
-                    <div className="font-medium text-sm text-gray-900 dark:text-white">
-                      {result.endpoint.name}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {result.endpoint.method} • {result.response?.time || 0}ms
+            {results.map((result) => {
+              const hasValidationFailures = !!result.validationResults?.some(v => v.result === 'fail');
+              const effectiveStatus = result.status === 'success' && hasValidationFailures ? 'failed' : result.status;
+              return (
+                <div key={result.endpoint.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    {getStatusIcon(effectiveStatus)}
+                    <div>
+                      <div className="font-medium text-sm text-gray-900 dark:text-white">
+                        {result.endpoint.name}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {result.endpoint.method} • {(result.response as any)?.responseTime ?? result.response?.time ?? 0}ms
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    {result.validationResults && result.validationResults.length > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        {result.validationResults.filter(v => v.result === 'pass').length}/{result.validationResults.length} validations
+                      </Badge>
+                    )}
+                    {getStatusBadge(effectiveStatus)}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  {result.validationResults && result.validationResults.length > 0 && (
-                    <Badge variant="outline" className="text-xs">
-                      {result.validationResults.filter(v => v.result === 'pass').length}/{result.validationResults.length} validations
-                    </Badge>
-                  )}
-                  {getStatusBadge(result.status)}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -265,11 +235,9 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="font-semibold text-gray-900 dark:text-white">
-              {useAllureReports ? 'Allure Report' : 'Extent Report'}
+              Extent Report
             </h4>
-            <Badge variant="outline" className="text-xs">
-              {useAllureReports ? 'Allure' : 'Extent'} Mode
-            </Badge>
+            <Badge variant="outline" className="text-xs">Extent Mode</Badge>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Button
@@ -280,36 +248,17 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
             >
               <Download className="w-4 h-4" />
               <span>
-                {isGenerating === 'allure' || isGenerating === 'extent' 
+                {isGenerating === 'extent' 
                   ? 'Generating...' 
-                  : `Generate ${useAllureReports ? 'Allure' : 'Extent'} Report`
+                  : `Generate Extent Report`
                 }
               </span>
             </Button>
-            {useAllureReports && (
-              <Button
-                variant="outline"
-                onClick={handleServeAllureReport}
-                disabled={isGenerating === 'serve'}
-                className="flex items-center justify-center space-x-2"
-              >
-                <Globe className="w-4 h-4" />
-                <span>{isGenerating === 'serve' ? 'Preparing...' : 'Serve Allure Report'}</span>
-              </Button>
-            )}
           </div>
-          {!useAllureReports && (
-            <div className="text-sm text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-              <p>💡 <strong>Extent Reports:</strong> Beautiful HTML reports that work without any server setup. 
-              Perfect for immediate viewing and sharing.</p>
-            </div>
-          )}
-          {useAllureReports && (
-            <div className="text-sm text-gray-600 dark:text-gray-400 bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
-              <p>💡 <strong>Allure Reports:</strong> Professional reports with advanced analytics. 
-              Requires Allure CLI for HTML generation.</p>
-            </div>
-          )}
+          <div className="text-sm text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+            <p>💡 <strong>Extent Reports:</strong> Beautiful HTML reports that work without any server setup. 
+            Perfect for immediate viewing and sharing.</p>
+          </div>
         </div>
 
         {/* Jira Integration */}

@@ -172,8 +172,6 @@ export async function parseSwaggerFromURL(url: string): Promise<ParsedEndpoint[]
         if (error instanceof Error) {
             // Check if it's a proxy-related error
             if (error.message.includes('proxy') ||
-                error.message.includes('localhost:3001') ||
-                error.message.includes('10.106.246.81') ||
                 error.message.includes('Failed to fetch') ||
                 error.message.includes('NetworkError')) {
                 throw new Error(`Failed to import Swagger from URL via proxy. Please ensure the backend proxy server is running. Error: ${error.message}`);

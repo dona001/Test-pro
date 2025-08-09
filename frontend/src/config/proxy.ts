@@ -16,30 +16,29 @@ const getCurrentHost = () => {
 
 // Determine if we're in development or production
 const isDevelopment = () => {
+    // Prefer ENV_MODE when provided
+    const envMode = (import.meta as any).env?.ENV_MODE || (window as any).ENV_MODE;
+    if (envMode) return envMode === 'development';
     const {hostname} = getCurrentHost();
     return hostname === 'localhost' || hostname === '127.0.0.1';
 };
 
 // Get the proxy server hostname (same as current hostname for production)
 const getProxyHostname = () => {
+    // Use env when available; fallback to current hostname/local
+    const envAny = (import.meta as any).env || {};
+    const envHost = envAny.VITE_BACKEND_IP || envAny.BACKEND_IP || (window as any).BACKEND_IP;
+    if (envHost) return envHost;
     const {hostname} = getCurrentHost();
-
-    if (isDevelopment()) {
-        return 'localhost';
-    } else {
-        // In production, use the same hostname as the frontend
-        return hostname;
-    }
+    return isDevelopment() ? 'localhost' : hostname;
 };
 
 // Get the proxy server port (configurable via environment variable)
 const getProxyPort = () => {
-    // Check for environment variable first
-    if (typeof window !== 'undefined' && window.PROXY_PORT) {
-        return window.PROXY_PORT;
-    }
-
-    // Default to 3001
+    // Prefer env variables (Vite exposes only VITE_*)
+    const envAny = (import.meta as any).env || {};
+    const envPort = envAny.VITE_BACKEND_PORT || envAny.BACKEND_PORT || (window as any).BACKEND_PORT || (window as any).PROXY_PORT;
+    if (envPort) return String(envPort);
     return '3001';
 };
 

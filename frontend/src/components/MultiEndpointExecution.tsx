@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Play, Download, CheckCircle, AlertCircle, Clock, FileCode, Settings, Eye, Shield, Coffee, Archive, ChevronDown, ToggleLeft } from 'lucide-react';
+import { Play, Download, CheckCircle, AlertCircle, Clock, FileCode, Settings, Eye, Shield, Archive, ChevronDown, ToggleLeft } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { proxyApiCall } from '@/api/proxy';
@@ -15,7 +15,7 @@ import { TestReportPanel } from './TestReportPanel';
 import { JiraIntegration } from './JiraIntegration';
 import { BitbucketIntegration } from './BitbucketIntegration';
 import { isFeatureEnabled } from '@/config';
-import { generateTestCode, downloadFiles } from '@/utils/testCodeGenerator';
+// Removed standard code generator
 import { BDDCodeGenerator as BDDGenerator } from '@/utils/bddCodeGenerator';
 import { getMethodColor } from '@/lib/utils';
 
@@ -326,71 +326,7 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
     });
   };
 
-  const handleMultiEndpointCodeGeneration = async (format: 'cucumber' | 'karate') => {
-    // Filter results based on toggle setting
-    const eligibleResults = onlySuccessfulTests 
-      ? executionResults.filter(result => result.status === 'success')
-      : executionResults;
-    
-    if (eligibleResults.length === 0) {
-      const message = onlySuccessfulTests 
-        ? "Please execute endpoints successfully before generating test code"
-        : "Please execute endpoints before generating test code";
-      toast({
-        title: "No eligible tests",
-        description: message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      toast({
-        title: "Generating test code...",
-        description: `Creating ${format} test files for ${eligibleResults.length} ${onlySuccessfulTests ? 'successful' : 'executed'} endpoints`,
-      });
-
-      const allFiles: Array<{name: string, content: string, type: string}> = [];
-
-      // Generate test code for each eligible endpoint
-      for (const result of eligibleResults) {
-        const endpoint = result.endpoint;
-        const validationRules = endpointValidations[endpoint.id] || [];
-        
-        const config = {
-          method: endpoint.method,
-          url: endpoint.url,
-          headers: endpoint.headers,
-          body: endpoint.body,
-          validationRules: validationRules.map(rule => ({
-            type: rule.type,
-            field: rule.field,
-            expectedValue: rule.expectedValue
-          }))
-        };
-
-        const testCode = generateTestCode(format, config);
-        allFiles.push(...testCode.files);
-      }
-
-      await downloadFiles(allFiles);
-
-      toast({
-        title: "Test code generated!",
-        description: format === 'cucumber' 
-          ? `Maven project with ${allFiles.length} files downloaded as ZIP`
-          : `${allFiles.length} Karate feature files downloaded as ZIP`,
-      });
-
-    } catch (error) {
-      console.error('Multi-endpoint code generation failed:', error);
-      toast({
-        title: "Generation failed",
-        description: "Unable to generate test code. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+  // Removed standard/karate multi-endpoint generator (keeping BDD only)
 
   const handleCodeGeneration = () => {
     // Only generate code for successfully executed endpoints
@@ -609,17 +545,7 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                     <Play className="w-4 h-4 mr-1" />
                     {isExecuting ? 'Running...' : 'Run Selected'}
                   </Button>
-                  {isFeatureEnabled('standardCodeGeneration') && (
-                    <Button
-                      variant="outline"
-                      onClick={handleCodeGeneration}
-                      disabled={executionResults.filter(r => r.status === 'success').length === 0}
-                      className="flex items-center"
-                    >
-                      <FileCode className="w-4 h-4 mr-1" />
-                      Generate Code
-                    </Button>
-                  )}
+                  {/* Removed standard code generation button */}
                   {/* {isFeatureEnabled('bddCodeGeneration') && (
                     <Button
                       variant="outline"
@@ -793,71 +719,12 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                 </ScrollArea>
               </div>
 
-              {/* Execution Results Summary */}
-              {executionResults.length > 0 && (
+              {/* Test Code Generation Section - Collapsible (BDD only) */}
+              {(executionResults.length > 0) && (isFeatureEnabled('bddCodeGeneration')) && (
                 <div className="mt-4 space-y-4">
-                   <Collapsible defaultOpen={true}>
-                     <CollapsibleTrigger asChild>
-                       <div className="p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                         <div className="flex items-center justify-between">
-                           <h4 className="font-medium">Execution Summary</h4>
-                           <div className="flex items-center space-x-4">
-                             <div className="flex items-center space-x-2 text-sm">
-                               <span className="text-green-600 font-semibold">
-                                 {executionResults.filter(r => r.status === 'success').length} passed
-                               </span>
-                               <span className="text-red-600 font-semibold">
-                                 {executionResults.filter(r => r.status === 'failed').length} failed
-                               </span>
-                             </div>
-                             <ChevronDown className="h-4 w-4 transition-transform duration-200" />
-                           </div>
-                         </div>
-                       </div>
-                     </CollapsibleTrigger>
-                     <CollapsibleContent>
-                       <div className="px-4 pb-4">
-                         <div className="grid grid-cols-4 gap-4 text-sm">
-                           <div className="text-center">
-                             <div className="text-2xl font-bold text-green-600">
-                               {executionResults.filter(r => r.status === 'success').length}
-                             </div>
-                             <div className="text-gray-600">Successful</div>
-                           </div>
-                            <div className="text-center">
-                              <div className="text-2xl font-bold text-red-600">
-                                {executionResults.filter(r => r.status === 'failed').length}
-                              </div>
-                              <div className="text-gray-600">Failed</div>
-                            </div>
-                           <div className="text-center">
-                             <div className="text-2xl font-bold text-blue-600">
-                               {executionResults.reduce((sum, r) => sum + (r.validationResults?.filter(v => v.result === 'pass').length || 0), 0)}/
-                               {executionResults.reduce((sum, r) => sum + (r.validationResults?.length || 0), 0)}
-                             </div>
-                             <div className="text-gray-600">Validations</div>
-                           </div>
-                           <div className="text-center">
-                             <div className="text-2xl font-bold text-purple-600">
-                               {Math.round(
-                                 executionResults
-                                   .filter(r => r.response?.responseTime)
-                                   .reduce((acc, r) => acc + (r.response?.responseTime || 0), 0) / 
-                                 executionResults.filter(r => r.response?.responseTime).length
-                               ) || 0}ms
-                             </div>
-                             <div className="text-gray-600">Avg Time</div>
-                           </div>
-                         </div>
-                       </div>
-                     </CollapsibleContent>
-                   </Collapsible>
-
-                   {/* Test Code Generation Section - Collapsible */}
-                   {(isFeatureEnabled('standardCodeGeneration') || isFeatureEnabled('bddCodeGeneration')) && (
-                     <Collapsible>
-                     <CollapsibleTrigger asChild>
-                       <Card className="border-2 border-dashed border-blue-200 bg-blue-50 cursor-pointer hover:bg-blue-100/50 transition-colors">
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Card className="border-2 border-dashed border-blue-200 bg-blue-50 cursor-pointer hover:bg-blue-100/50 transition-colors">
                          <CardHeader>
                            <CardTitle className="flex items-center justify-between">
                              <span className="flex items-center text-blue-800">
@@ -865,27 +732,13 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                                Generate Combined Test Suite
                              </span>
                              <div className="flex items-center space-x-2">
-                               <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                                 {onlySuccessfulTests 
-                                   ? `${executionResults.filter(r => r.status === 'success').length}/${executionResults.length} successful`
-                                   : `${executionResults.length} executed`
-                                 }
-                               </Badge>
-                               {isFeatureEnabled('standardCodeGeneration') && (
-                                 <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                                   Standard
-                                 </Badge>
-                               )}
-                               {isFeatureEnabled('karateFramework') && (
-                                 <Badge variant="outline" className="bg-purple-100 text-purple-700">
-                                   Karate
-                                 </Badge>
-                               )}
-                               {isFeatureEnabled('bddCodeGeneration') && (
-                                 <Badge variant="outline" className="bg-green-100 text-green-700">
-                                   BDD
-                                 </Badge>
-                               )}
+                                <Badge variant="outline" className="bg-blue-100 text-blue-700">
+                                  {onlySuccessfulTests 
+                                    ? `${executionResults.filter(r => r.status === 'success').length}/${executionResults.length} successful`
+                                    : `${executionResults.length} executed`
+                                  }
+                                </Badge>
+                                <Badge variant="outline" className="bg-green-100 text-green-700">BDD</Badge>
                                <ChevronDown className="h-4 w-4 transition-transform duration-200" />
                              </div>
                            </CardTitle>
@@ -913,52 +766,14 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                              </div>
                            </div>
                            
-                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                             {isFeatureEnabled('standardCodeGeneration') && (
-                               <Button
-                                 onClick={() => handleMultiEndpointCodeGeneration('cucumber')}
-                                 className="flex items-center justify-center h-20 flex-col space-y-2 bg-blue-600 hover:bg-blue-700"
-                               >
-                                 <div className="flex items-center">
-                                   <Coffee className="w-5 h-5 mr-2" />
-                                   <span className="font-semibold">Standard Code</span>
-                                 </div>
-                                 <div className="text-xs text-center">
-                                   Cucumber + RestAssured
-                                 </div>
-                                 <div className="flex items-center text-xs">
-                                   <Archive className="w-3 h-3 mr-1" />
-                                   ZIP download
-                                 </div>
-                               </Button>
-                             )}
-
-                             {isFeatureEnabled('karateFramework') && (
-                               <Button
-                                 onClick={() => handleMultiEndpointCodeGeneration('karate')}
-                                 className="flex items-center justify-center h-20 flex-col space-y-2 bg-purple-600 hover:bg-purple-700"
-                               >
-                                 <div className="flex items-center">
-                                   <FileCode className="w-5 h-5 mr-2" />
-                                   <span className="font-semibold">Karate DSL</span>
-                                 </div>
-                                 <div className="text-xs text-center">
-                                   Feature files bundle
-                                 </div>
-                                 <div className="flex items-center text-xs">
-                                   <Archive className="w-3 h-3 mr-1" />
-                                   ZIP download
-                                 </div>
-                               </Button>
-                             )}
-
-                             {isFeatureEnabled('bddCodeGeneration') && (
+                            <div className="grid grid-cols-1 gap-4">
+                              {isFeatureEnabled('bddCodeGeneration') && (
                                <Button
                                  onClick={handleBDDCodeGeneration}
                                  className="flex items-center justify-center h-20 flex-col space-y-2 bg-green-600 hover:bg-green-700"
                                >
                                  <div className="flex items-center">
-                                   <Shield className="w-5 h-5 mr-2" />
+                                    <Shield className="w-5 h-5 mr-2" />
                                    <span className="font-semibold">BDD Framework</span>
                                  </div>
                                  <div className="text-xs text-center">
@@ -972,19 +787,13 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                              )}
                            </div>
 
-                           <div className="mt-4 p-3 bg-white rounded-md border">
+                            <div className="mt-4 p-3 bg-white rounded-md border">
                              <h4 className="text-sm font-medium mb-2">Generated Test Suite Will Include:</h4>
                              <ul className="text-xs text-gray-600 space-y-1">
                                <li>• Test files for {onlySuccessfulTests 
                                  ? executionResults.filter(r => r.status === 'success').length 
                                  : executionResults.length} {onlySuccessfulTests ? 'successful' : 'executed'} endpoints</li>
                                <li>• All configured validation rules per endpoint</li>
-                               {isFeatureEnabled('standardCodeGeneration') && (
-                                 <li>• Standard Cucumber + RestAssured test code</li>
-                               )}
-                               {isFeatureEnabled('karateFramework') && (
-                                 <li>• Karate DSL feature files</li>
-                               )}
                                {isFeatureEnabled('bddCodeGeneration') && (
                                  <li>• BDD Feature files with Step Definitions</li>
                                )}
@@ -995,7 +804,6 @@ export const MultiEndpointExecution: React.FC<MultiEndpointExecutionProps> = ({
                        </Card>
                      </CollapsibleContent>
                    </Collapsible>
-                   )}
 
                   {/* Test Report Panel */}
                   {isFeatureEnabled('reporting') && (

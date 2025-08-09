@@ -15,16 +15,14 @@ export const config = {
         smartImport: true,
         multiEndpointTesting: true,
         testCodeGeneration: true,
-        standardCodeGeneration: false, // Standard test code generation (separate from BDD)
         reporting: true,
-        useAllureReports: false, // Toggle between Extent (false) and Allure (true)
-        valueSelector: false, // Enable/disable dynamic value selection dropdown
+        valueSelector: true, // Enable/disable dynamic value selection dropdown
         bddCodeGeneration: true, // BDD framework code generation
         karateFramework: false, // Karate framework support
         
         // UI Section Feature Flags
-        enableJiraIntegration: false, // Control Jira Integration UI visibility
-        enableBitbucketIntegration: false, // Control Bitbucket Integration UI visibility
+        enableJiraIntegration: true, // Control Jira Integration UI visibility
+        enableBitbucketIntegration: true, // Control Bitbucket Integration UI visibility
         enableCodeGeneration: true, // Control Generated Code Section UI visibility
     },
 

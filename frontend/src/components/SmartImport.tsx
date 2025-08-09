@@ -123,8 +123,6 @@ export const SmartImport: React.FC<SmartImportProps> = ({ onEndpointSelected }) 
         
         // Check if it's a proxy-related error
         if (error.message.includes('proxy') || 
-            error.message.includes('localhost:3001') || 
-            error.message.includes('10.106.246.81') ||
             error.message.includes('Failed to fetch') ||
             error.message.includes('NetworkError')) {
           isProxyError = true;

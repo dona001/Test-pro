@@ -10,7 +10,13 @@ build/
 .vite/
 
 # Environment variables
+# Allow committed envs for shared config
+!.env.development
+!.env.production
 
+# Optional local overrides (keep ignored)
+.env.local
+.env.*.local
 
 # IDE files
 .vscode/

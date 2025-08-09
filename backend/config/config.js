@@ -1,31 +1,31 @@
 // Configuration for the CORS Proxy Server
 const config = {
   // Environment: 'development' or 'production'
-  environment: process.env.NODE_ENV || 'production',
+  environment: process.env.ENV_MODE || process.env.NODE_ENV || 'production',
   
   // Server configuration
-  port: process.env.PORT || 3001,
+  port: Number(process.env.BACKEND_PORT) || Number(process.env.PORT) || 3001,
   
-  // IP addresses - hardcoded for simplicity
+  // Environment-driven network configuration (no hardcoded IPs)
   development: {
-    serverIP: 'localhost',
-    allowedOrigins: ['http://localhost:8080', 'http://localhost:8081', 'http://localhost:8082', 'http://localhost:3000'],
+    serverIP: process.env.BACKEND_IP || 'localhost',
+    allowedOrigins: ['*'],
     consoleMessages: {
       serverRunning: '🚀 CORS Wrapper Server running on port',
-      healthCheck: '📡 Health check: http://localhost',
-      wrapperEndpoint: '🔗 Wrapper endpoint: http://localhost',
-      corsEnabled: '🌐 CORS enabled for: http://localhost:8080, http://localhost:8081, http://localhost:8082, http://localhost:3000',
+      healthCheck: '📡 Health check: http://',
+      wrapperEndpoint: '🔗 Wrapper endpoint: http://',
+      corsEnabled: '🌐 CORS enabled for dynamic origins',
       startedAt: '⏰ Started at:'
     }
   },
   
   production: {
-    serverIP: '192.168.120.4', // Your production IP
+    serverIP: process.env.BACKEND_IP || '0.0.0.0',
     allowedOrigins: ['*'], // Allow all origins in production
     consoleMessages: {
       serverRunning: '🚀 CORS Wrapper Server running on port',
-      healthCheck: '📡 Health check: http://192.168.120.4',
-      wrapperEndpoint: '🔗 Wrapper endpoint: http://192.168.120.4',
+      healthCheck: '📡 Health check: http://',
+      wrapperEndpoint: '🔗 Wrapper endpoint: http://',
       corsEnabled: '🌐 CORS enabled for dynamic origins',
       startedAt: '⏰ Started at:'
     }
@@ -51,8 +51,8 @@ const config = {
     // Replace placeholders with actual values
     return {
       serverRunning: messages.serverRunning,
-      healthCheck: `${messages.healthCheck}:${this.port}/health`,
-      wrapperEndpoint: `${messages.wrapperEndpoint}:${this.port}/api/wrapper`,
+      healthCheck: `${messages.healthCheck}${this.current.serverIP}:${this.port}/health`,
+      wrapperEndpoint: `${messages.wrapperEndpoint}${this.current.serverIP}:${this.port}/api/wrapper`,
       corsEnabled: messages.corsEnabled,
       startedAt: messages.startedAt
     };
