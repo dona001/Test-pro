@@ -12,7 +12,9 @@ import {
   CheckCircle,
   XCircle,
   BarChart3,
-  ExternalLink
+  ExternalLink,
+  Filter,
+  X
 } from 'lucide-react';
 import { ExtentReporter } from '@/utils/extentReporter';
 import { useToast } from '@/hooks/use-toast';
@@ -63,6 +65,7 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
   onJiraAttach
 }) => {
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  const [currentFilter, setCurrentFilter] = useState<'all' | 'passed' | 'failed'>('all');
   const { toast } = useToast();
 
   if (results.length === 0) {
@@ -77,6 +80,38 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
   const passed = results.filter(r => r.status === 'success' && (!r.validationResults || r.validationResults.every(v => v.result === 'pass'))).length;
   const failed = totalTests - passed;
   const totalExecutionTime = results.reduce((sum, r) => sum + (((r.response as any)?.responseTime ?? r.response?.time ?? 0)), 0);
+
+  // Filter results based on current filter
+  const getFilteredResults = () => {
+    if (currentFilter === 'all') return results;
+    
+    return results.filter(result => {
+      const hasValidationFailures = !!result.validationResults?.some(v => v.result === 'fail');
+      const effectiveStatus = result.status === 'success' && hasValidationFailures ? 'failed' : result.status;
+      
+      if (currentFilter === 'passed') {
+        return effectiveStatus === 'success';
+      } else if (currentFilter === 'failed') {
+        return effectiveStatus === 'failed';
+      }
+      return true;
+    });
+  };
+
+  const filteredResults = getFilteredResults();
+
+  const handleFilterClick = (filter: 'all' | 'passed' | 'failed') => {
+    if (currentFilter === filter) {
+      setCurrentFilter('all'); // Toggle off if same filter clicked
+    } else {
+      setCurrentFilter(filter);
+    }
+  };
+
+  const clearFilter = () => {
+    setCurrentFilter('all');
+  };
+
   // Check which reporting system to use
   const useAllureReports = false;
 
@@ -173,13 +208,29 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Total Tests</div>
           </div>
-          <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+          <div 
+            className={`text-center p-4 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${
+              currentFilter === 'passed' 
+                ? 'bg-green-100 dark:bg-green-800/40 ring-2 ring-green-300 dark:ring-green-600' 
+                : 'bg-green-50 dark:bg-green-900/20'
+            }`}
+            onClick={() => handleFilterClick('passed')}
+            title="Click to filter passed tests"
+          >
             <div className="text-2xl font-bold text-green-600 dark:text-green-400">
               {passed}
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Passed</div>
           </div>
-          <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+          <div 
+            className={`text-center p-4 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${
+              currentFilter === 'failed' 
+                ? 'bg-red-100 dark:bg-red-800/40 ring-2 ring-red-300 dark:ring-red-600' 
+                : 'bg-red-50 dark:bg-red-900/20'
+            }`}
+            onClick={() => handleFilterClick('failed')}
+            title="Click to filter failed tests"
+          >
             <div className="text-2xl font-bold text-red-600 dark:text-red-400">
               {failed}
             </div>
@@ -193,13 +244,42 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
           </div>
         </div>
 
+        {/* Filter Status and Clear Button */}
+        {currentFilter !== 'all' && (
+          <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                Showing {currentFilter === 'passed' ? 'passed' : 'failed'} tests only 
+                ({filteredResults.length} of {totalTests})
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilter}
+              className="h-6 px-2 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-800/40"
+            >
+              <X className="w-3 h-3 mr-1" />
+              Clear Filter
+            </Button>
+          </div>
+        )}
+
         <Separator />
 
         {/* Quick Results Overview */}
         <div className="space-y-3">
-          <h4 className="font-semibold text-gray-900 dark:text-white">Quick Overview</h4>
+          <h4 className="font-semibold text-gray-900 dark:text-white">
+            Quick Overview
+            {currentFilter !== 'all' && (
+              <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                ({currentFilter === 'passed' ? 'Passed' : 'Failed'} tests only)
+              </span>
+            )}
+          </h4>
           <div className="space-y-2 max-h-40 overflow-y-auto overflow-x-auto">
-            {results.map((result) => {
+            {filteredResults.map((result) => {
               const hasValidationFailures = !!result.validationResults?.some(v => v.result === 'fail');
               const effectiveStatus = result.status === 'success' && hasValidationFailures ? 'failed' : result.status;
               return (
@@ -227,6 +307,12 @@ export const TestReportPanel: React.FC<TestReportPanelProps> = ({
               );
             })}
           </div>
+          {filteredResults.length === 0 && currentFilter !== 'all' && (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-lg font-medium mb-2">No {currentFilter} tests found</div>
+              <div className="text-sm">Try adjusting your filter or check the test results</div>
+            </div>
+          )}
         </div>
 
         <Separator />
