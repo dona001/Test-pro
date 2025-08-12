@@ -24,6 +24,14 @@ export const config = {
         enableJiraIntegration: true, // Control Jira Integration UI visibility
         enableBitbucketIntegration: true, // Control Bitbucket Integration UI visibility
         enableCodeGeneration: true, // Control Generated Code Section UI visibility
+        
+        // QA Tools Dashboard Feature Flags
+        qaToolsDashboard: false, // Main dashboard visibility
+        loadTester: false, // Load testing tool
+        securityScanner: false, // Security scanning tool
+        testManager: false, // Test case management tool
+        qaAnalytics: false, // QA analytics tool
+        bugTracker: false, // Bug tracking tool
     },
 
     // External service configurations (optional)
