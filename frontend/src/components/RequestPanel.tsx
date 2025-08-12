@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, X, Send, Zap, Copy, Clipboard, FileText } from 'lucide-react';
+import { Plus, X, Send, Zap, Copy, Clipboard, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { getMethodColor } from '@/lib/utils';
@@ -54,6 +54,11 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ onApiCall, loading, 
   const [body, setBody] = useState('');
   const [bulkHeadersText, setBulkHeadersText] = useState('');
   const [showBulkInput, setShowBulkInput] = useState(false);
+  const [jsonValidation, setJsonValidation] = useState<{
+    isValid: boolean;
+    error?: string;
+    suggestions?: string[];
+  }>({ isValid: true });
   const { toast } = useToast();
 
   // Auto-populate form when selectedEndpoint changes
@@ -139,8 +144,95 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ onApiCall, loading, 
     setShowBulkInput(true);
   };
 
+  // JSON validation function
+  const validateJson = (jsonString: string) => {
+    if (!jsonString.trim()) {
+      return { isValid: true };
+    }
+
+    try {
+      JSON.parse(jsonString);
+      return { isValid: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Invalid JSON';
+      let suggestions: string[] = [];
+
+      // Provide helpful suggestions based on common errors
+      if (errorMessage.includes('Unexpected token')) {
+        suggestions = [
+          'Check for missing quotes around property names',
+          'Ensure all strings are properly quoted',
+          'Remove trailing commas',
+          'Check for extra characters after JSON'
+        ];
+      } else if (errorMessage.includes('Unexpected end')) {
+        suggestions = [
+          'Check for missing closing braces or brackets',
+          'Ensure the JSON is complete'
+        ];
+      } else if (errorMessage.includes('null')) {
+        suggestions = [
+          'Use null instead of "null" for null values',
+          'Check for extra quotes around null'
+        ];
+      } else if (errorMessage.includes('Unexpected number')) {
+        suggestions = [
+          'Check for invalid number formats',
+          'Ensure numbers are not quoted'
+        ];
+      }
+
+      return {
+        isValid: false,
+        error: errorMessage,
+        suggestions
+      };
+    }
+  };
+
+  // Validate JSON when body changes
+  useEffect(() => {
+    if (['POST', 'PUT', 'PATCH'].includes(method) && body.trim()) {
+      const validation = validateJson(body);
+      setJsonValidation(validation);
+    } else {
+      setJsonValidation({ isValid: true });
+    }
+  }, [body, method]);
+
+  // Format JSON function
+  const formatJson = () => {
+    if (!body.trim()) return;
+    
+    try {
+      const parsed = JSON.parse(body);
+      const formatted = JSON.stringify(parsed, null, 2);
+      setBody(formatted);
+      toast({
+        title: "JSON Formatted",
+        description: "JSON has been formatted and indented for better readability.",
+      });
+    } catch (error) {
+      toast({
+        title: "Cannot Format JSON",
+        description: "Please fix JSON syntax errors before formatting.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSubmit = () => {
     if (!url.trim()) return;
+
+    // Check if JSON is valid before submitting
+    if (['POST', 'PUT', 'PATCH'].includes(method) && body.trim() && !jsonValidation.isValid) {
+      toast({
+        title: "Invalid JSON",
+        description: "Please fix the JSON syntax errors before sending the request.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const headersObject = headers.reduce((acc, header) => {
       if (header.key.trim() && header.value.trim()) {
@@ -149,11 +241,14 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ onApiCall, loading, 
       return acc;
     }, {} as Record<string, string>);
 
+    // Don't send body for GET requests
+    const shouldSendBody = method !== 'GET' && body.trim();
+    
     onApiCall({
       method,
       url: url.trim(),
       headers: headersObject,
-      body: body.trim() || undefined,
+      body: shouldSendBody ? body.trim() : undefined,
     });
   };
 
@@ -193,13 +288,21 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ onApiCall, loading, 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {HTTP_METHODS.map((httpMethod) => (
-                    <SelectItem key={httpMethod.value} value={httpMethod.value}>
-                      <Badge className={`${httpMethod.color} border text-xs font-semibold`}>
-                        {httpMethod.value}
-                      </Badge>
-                    </SelectItem>
-                  ))}
+                  {HTTP_METHODS.map((httpMethod) => {
+                    const supportsBody = ['POST', 'PUT', 'PATCH'].includes(httpMethod.value);
+                    return (
+                      <SelectItem key={httpMethod.value} value={httpMethod.value}>
+                        <div className="flex items-center justify-between w-full">
+                          <Badge className={`${httpMethod.color} border text-xs font-semibold`}>
+                            {httpMethod.value}
+                          </Badge>
+                          {!supportsBody && (
+                            <span className="text-xs text-gray-500 ml-2">No body</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
               <Input
@@ -345,18 +448,115 @@ X-Custom-Header: test`}
               <div className="space-y-3">
                 <Label htmlFor="request-body" className="text-sm font-medium text-gray-700">
                   Request Body (JSON)
+                  {method === 'GET' && (
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      Not supported for GET requests
+                    </Badge>
+                  )}
+                  {['POST', 'PUT', 'PATCH'].includes(method) && body.trim() && (
+                    <div className="inline-flex items-center ml-2">
+                      {jsonValidation.isValid ? (
+                        <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Valid JSON
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Invalid JSON
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                 </Label>
                 <Textarea
                   id="request-body"
-                  placeholder={`{
+                  placeholder={
+                    method === 'GET' 
+                      ? 'GET requests do not support request bodies'
+                      : `{
   "name": "John Doe",
   "email": "john@example.com",
   "age": 30
-}`}
+}`
+                  }
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
-                  className="min-h-[200px] font-mono text-sm bg-gray-50 border-2 border-dashed"
+                  disabled={method === 'GET'}
+                  className={`min-h-[200px] font-mono text-sm border-2 ${
+                    method === 'GET' 
+                      ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' 
+                      : jsonValidation.isValid 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-red-50 border-red-200'
+                  }`}
                 />
+                
+                {/* JSON Validation Feedback */}
+                {['POST', 'PUT', 'PATCH'].includes(method) && body.trim() && (
+                  <div className={`p-3 rounded-md ${
+                    jsonValidation.isValid 
+                      ? 'bg-green-50 border border-green-200' 
+                      : 'bg-red-50 border border-red-200'
+                  }`}>
+                    {jsonValidation.isValid ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center text-green-800">
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            <span className="text-sm font-medium">Valid JSON format</span>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={formatJson}
+                              className="h-6 px-2 text-green-600 hover:bg-green-100"
+                            >
+                              Format JSON
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setBody('')}
+                              className="h-6 px-2 text-gray-600 hover:bg-gray-100"
+                            >
+                              Clear Body
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center text-red-800">
+                          <AlertCircle className="w-4 h-4 mr-2" />
+                          <span className="text-sm font-medium">JSON Syntax Error</span>
+                        </div>
+                        <p className="text-sm text-red-700">{jsonValidation.error}</p>
+                        {jsonValidation.suggestions && jsonValidation.suggestions.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs font-medium text-red-600 mb-1">Suggestions:</p>
+                            <ul className="text-xs text-red-600 space-y-1">
+                              {jsonValidation.suggestions.map((suggestion, index) => (
+                                <li key={index} className="flex items-start">
+                                  <span className="mr-2">•</span>
+                                  <span>{suggestion}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {method === 'GET' && (
+                  <p className="text-sm text-amber-600 bg-amber-50 p-2 rounded-md">
+                    ⚠️ <strong>Note:</strong> GET requests cannot have a request body according to HTTP standards. 
+                    The body field has been disabled for this method.
+                  </p>
+                )}
               </div>
             </TabsContent>
           </Tabs>

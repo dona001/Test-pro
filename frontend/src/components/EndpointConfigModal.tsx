@@ -195,7 +195,7 @@ export const EndpointConfigModal: React.FC<EndpointConfigModalProps> = ({
           </Card>
 
           {/* Request Body */}
-          {['POST', 'PUT', 'PATCH'].includes(config.method) && (
+          {['POST', 'PUT', 'PATCH'].includes(config.method) ? (
             <Card>
               <CardHeader>
                 <CardTitle>Request Body</CardTitle>
@@ -213,6 +213,24 @@ export const EndpointConfigModal: React.FC<EndpointConfigModalProps> = ({
                       ⚠️ Note: Body content is not valid JSON
                     </p>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Request Body
+                  <Badge variant="secondary" className="text-xs">
+                    Not supported for {config.method} requests
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 bg-gray-50 rounded-md border-2 border-dashed border-gray-200">
+                  <p className="text-sm text-gray-600 text-center">
+                    {config.method} requests cannot have a request body according to HTTP standards.
+                  </p>
                 </div>
               </CardContent>
             </Card>
